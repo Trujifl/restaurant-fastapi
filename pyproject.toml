@@ -1,0 +1,15 @@
+[project]
+name = "restaurant-fastapi"
+version = "0.1.0"
+description = "API para comandas de restaurante"
+authors = ["Tu Jorge Trujillo <jorge.itrujillo93@gmail.com>"]
+dependencies = [
+    "fastapi",
+    "sqlalchemy",
+    "uvicorn[standard]",
+    "alembic",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
