@@ -9,7 +9,8 @@ import os
 
 app = FastAPI()
 
-allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")]
+origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS", "http://localhost:5173")
+allowed_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +25,10 @@ Base.metadata.create_all(bind=engine)
 app.include_router(product.router)
 app.include_router(table_router.router)
 app.include_router(order_router.router)
+
+@app.get("/health")
+def health():
+    return {"ok": True}
 
 @app.get("/")
 def home():
