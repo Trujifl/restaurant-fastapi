@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: restaurant-fastapi
+Version: 0.1.0
+Summary: API para comandas de restaurante
+Author-email: Jorge Trujillo <jorge.itrujillo93@gmail.com>
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.110.0
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: uvicorn[standard]>=0.24.0
+Requires-Dist: alembic>=1.13.0
+Requires-Dist: gunicorn>=22.0.0
+Requires-Dist: python-dotenv>=1.0.0
+
+# restaurant-fastapi
