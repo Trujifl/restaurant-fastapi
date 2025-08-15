@@ -22,7 +22,7 @@ fi
 
 git push -u origin main
 
-ssh ubuntu@3.137.206.197 <<'SSHCMDS'
+ssh -t ubuntu@3.137.206.197 <<'SSHCMDS'
 set -e
 cd ~/restaurant-fastapi
 git pull
