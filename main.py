@@ -1,20 +1,17 @@
 from fastapi import FastAPI
 from database import Base, engine
 from models import order, product, table, user
-from routers import product
+from routers import product as product_router
 from routers import table as table_router
 from routers import order as order_router
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 app = FastAPI()
+api = FastAPI()
 
-origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS", "http://localhost:5173")
-allowed_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
-
-app.add_middleware(
+api.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,14 +19,16 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(product.router)
-app.include_router(table_router.router)
-app.include_router(order_router.router)
+api.include_router(product_router.router)
+api.include_router(table_router.router)
+api.include_router(order_router.router)
 
-@app.get("/health")
+@api.get("/health")
 def health():
     return {"ok": True}
 
-@app.get("/")
-def home():
-    return {"mensaje": "Bienvenido a la API de comandas del restaurante"}
+@api.get("/")
+def api_root():
+    return {"message": "Restaurant API is running"}
+
+app.mount("/api", api)
