@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
 usage() { echo 'Uso: ./scripts/deploy.sh "Mensaje del commit"'; exit 0; }
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
@@ -27,5 +31,15 @@ set -e
 cd ~/restaurant-fastapi
 git pull
 sudo systemctl restart restaurant-api
+echo -e "\n===== Estado del servicio ====="
 sudo systemctl status restaurant-api --no-pager -l | sed -n '1,20p'
+echo -e "\n===== Comprobando endpoint /api/health ====="
+sleep 2
+HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/health || echo "000")
+if [ "$HEALTH_RESPONSE" = "200" ]; then
+  echo -e "${GREEN}✅ API está respondiendo correctamente (/api/health)${NC}"
+else
+  echo -e "${RED}❌ Error: API no respondió correctamente. Código HTTP: $HEALTH_RESPONSE${NC}"
+fi
+echo -e "\n===========================================\n"
 SSHCMDS
