@@ -15,8 +15,11 @@ dependencies = [
   "alembic>=1.13.0",
   "gunicorn>=22.0.0",
   "python-dotenv>=1.0.0"
+<<<<<<< HEAD
   # Si usarás Postgres:
   # "psycopg2-binary>=2.9.9"
+=======
+>>>>>>> 88aa4b9671e6c4e767141c467d19c6a98d9323b6
 ]
 
 [build-system]

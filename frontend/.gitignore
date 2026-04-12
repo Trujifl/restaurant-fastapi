@@ -1,17 +1,11 @@
-# Python / FastAPI
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.sqlite3
-
-.venv/
 venv/
-env/
-
+.venv/
 .env
 
-# Node / React
+# Node
 node_modules/
 dist/
 dist-ssr/

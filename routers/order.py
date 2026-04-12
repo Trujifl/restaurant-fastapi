@@ -29,6 +29,17 @@ def get_db():
         yield db
     finally:
         db.close()
+@router.get("/by_table/{table_id}", response_model=order_schema.Order)
+def get_order_by_table(table_id: int, db: Session = Depends(get_db)):
+    order = db.query(order_model.Order).filter(
+        order_model.Order.table_id == table_id,
+        order_model.Order.status.in_(["pending", "in_progress"])
+    ).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="No active order for this table")
+    
+    return order
 
 
 @router.get("/by_table/{table_id}", response_model=order_schema.Order)

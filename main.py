@@ -5,9 +5,23 @@ from routers import product
 from routers import table as table_router
 from routers import order as order_router
 from fastapi.middleware.cors import CORSMiddleware
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> 88aa4b9671e6c4e767141c467d19c6a98d9323b6
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://3.137.206.197"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")]
 
@@ -28,3 +42,7 @@ app.include_router(order_router.router)
 @app.get("/")
 def home():
     return {"mensaje": "Bienvenido a la API de comandas del restaurante"}
+
+@app.get("/api/health")
+def health():
+    return {"ok": True}
