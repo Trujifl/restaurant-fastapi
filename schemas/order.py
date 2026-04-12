@@ -1,32 +1,63 @@
-from pydantic import BaseModel
-from typing import List, Literal
+from pydantic import BaseModel, ConfigDict
+from typing import List, Literal, Optional
 from datetime import datetime
-from typing import Optional
+
+
+OrderStatus = Literal[
+    "pending",
+    "in_progress",
+    "ready",
+    "delivered",
+    "completed",
+    "cancelled"
+]
+
+
+class ProductSummary(BaseModel):
+    id: int
+    name: str
+    price: float
+    category: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int
 
+
 class OrderBase(BaseModel):
     table_id: int
     user_id: int
-    status: Literal["pending", "in_progress", "completed", "cancelled"] = "pending"
+    status: OrderStatus = "pending"
     note: Optional[str] = None
+
 
 class OrderCreate(OrderBase):
     items: List[OrderItemCreate]
 
-class OrderItem(OrderItemCreate):
-    id: int
 
-    class Config:
-        orm_mode = True
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
 
-class Order(OrderBase):
+
+class OrderItem(BaseModel):
     id: int
+    product_id: int
+    quantity: int
+    product: Optional[ProductSummary] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Order(BaseModel):
+    id: int
+    table_id: int
+    user_id: int
+    status: OrderStatus
+    note: Optional[str] = None
     timestamp: datetime
     items: List[OrderItem] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

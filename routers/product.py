@@ -54,3 +54,20 @@ def update_product(product_id: int, updated_data: product_schema.ProductCreate, 
     db.commit()
     db.refresh(product)
     return product
+
+@router.patch("/{product_id}", response_model=product_schema.Product)
+def patch_product(product_id: int, patch_data: product_schema.ProductUpdate, db: Session = Depends(get_db)):
+    product = db.query(product_model.Product).filter(product_model.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if patch_data.name is not None:
+        product.name = patch_data.name
+    if patch_data.price is not None:
+        product.price = patch_data.price
+    if patch_data.category is not None:
+        product.category = patch_data.category
+
+    db.commit()
+    db.refresh(product)
+    return product
