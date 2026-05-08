@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react"
 import axios from "axios"
 
 const ORDERS_API = "http://localhost:8000/orders/"
+const DAILY_SUMMARY_API = "http://localhost:8000/orders/summary/daily"
 
 export default function CashierView() {
   const [orders, setOrders] = useState([])
+  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [closingId, setClosingId] = useState(null)
   const [error, setError] = useState("")
@@ -28,13 +30,27 @@ export default function CashierView() {
     }
   }
 
+  const fetchDailySummary = async () => {
+    try {
+      const res = await axios.get(DAILY_SUMMARY_API)
+      setSummary(res.data)
+    } catch (err) {
+      console.error("Error fetching daily summary:", err)
+    }
+  }
+
+  const fetchCashierData = async () => {
+    await fetchDeliveredOrders()
+    await fetchDailySummary()
+  }
+
   const closeOrder = async (order) => {
     try {
       setClosingId(order.id)
 
       await axios.patch(`${ORDERS_API}${order.id}/close`)
 
-      await fetchDeliveredOrders()
+      await fetchCashierData()
     } catch (err) {
       console.error("Error closing order:", err)
       alert(err.response?.data?.detail || "No se pudo cerrar la orden.")
@@ -77,10 +93,10 @@ export default function CashierView() {
   }
 
   useEffect(() => {
-    fetchDeliveredOrders()
+    fetchCashierData()
 
     const interval = setInterval(() => {
-      fetchDeliveredOrders()
+      fetchCashierData()
     }, 5000)
 
     return () => clearInterval(interval)
@@ -92,28 +108,64 @@ export default function CashierView() {
         <div>
           <h2 className="text-3xl font-bold text-gray-800">💳 Cashier</h2>
           <p className="mt-1 text-gray-500">
-            Manage delivered orders and close payments.
+            Manage delivered orders, close payments and review daily sales.
           </p>
         </div>
 
         <button
-          onClick={fetchDeliveredOrders}
+          onClick={fetchCashierData}
           className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
         >
           Refresh
         </button>
       </div>
 
+      <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <div className="rounded-xl border bg-gray-50 p-4">
+          <p className="text-sm text-gray-500">Completed orders</p>
+          <p className="text-3xl font-bold text-gray-800">
+            {summary ? summary.completed_orders : 0}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-gray-50 p-4">
+          <p className="text-sm text-gray-500">Cancelled orders</p>
+          <p className="text-3xl font-bold text-red-600">
+            {summary ? summary.cancelled_orders : 0}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-gray-50 p-4">
+          <p className="text-sm text-gray-500">Active orders</p>
+          <p className="text-3xl font-bold text-blue-600">
+            {summary ? summary.active_orders : 0}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-gray-50 p-4">
+          <p className="text-sm text-gray-500">Daily sales</p>
+          <p className="text-3xl font-bold text-green-700">
+            ${summary ? Number(summary.total_sales).toFixed(2) : "0.00"}
+          </p>
+        </div>
+      </div>
+
+      {summary && (
+        <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+          📅 Daily summary date: <span className="font-semibold">{summary.date}</span>
+        </div>
+      )}
+
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Delivered orders</p>
+          <p className="text-sm text-gray-500">Delivered orders ready to collect</p>
           <p className="text-3xl font-bold text-gray-800">
             {filteredOrders.length}
           </p>
         </div>
 
         <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Total to collect</p>
+          <p className="text-sm text-gray-500">Pending collection total</p>
           <p className="text-3xl font-bold text-green-700">
             ${totalToCollect.toFixed(2)}
           </p>
