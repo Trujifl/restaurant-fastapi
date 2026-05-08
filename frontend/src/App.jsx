@@ -2,11 +2,12 @@ import { useEffect, useState } from "react"
 import KitchenView from "./KitchenView"
 import TableOrders from "./TableOrders"
 import CashierView from "./CashierView"
+import AdminPanel from "./AdminPanel"
 import Login from "./Login"
 
 export default function App() {
   const [user, setUser] = useState(null)
-  const [adminView, setAdminView] = useState("waiter")
+  const [adminView, setAdminView] = useState("admin")
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user")
@@ -24,7 +25,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("user")
     setUser(null)
-    setAdminView("waiter")
+    setAdminView("admin")
   }
 
   if (!user) {
@@ -58,6 +59,17 @@ export default function App() {
 
         {normalizedRole === "admin" && (
           <div className="mb-6 inline-flex flex-wrap overflow-hidden rounded-2xl border border-gray-200 bg-white shadow">
+            <button
+              onClick={() => setAdminView("admin")}
+              className={`px-6 py-4 text-2xl font-semibold ${
+                adminView === "admin"
+                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                  : "hover:bg-gray-50"
+              }`}
+            >
+              🛠️ Admin
+            </button>
+
             <button
               onClick={() => setAdminView("waiter")}
               className={`px-6 py-4 text-2xl font-semibold ${
@@ -93,6 +105,7 @@ export default function App() {
           </div>
         )}
 
+        {currentView === "admin" && <AdminPanel />}
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
