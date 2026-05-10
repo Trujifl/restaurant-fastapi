@@ -10,28 +10,37 @@ import Login from "./Login"
 
 export default function App() {
   const [user, setUser] = useState(null)
+  const [token, setToken] = useState(null)
   const [adminView, setAdminView] = useState("admin")
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user")
+    const savedToken = localStorage.getItem("token")
 
-    if (savedUser) {
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser))
+      setToken(savedToken)
     }
   }, [])
 
-  const handleLogin = (userData) => {
+  const handleLogin = (userData, accessToken) => {
     localStorage.setItem("user", JSON.stringify(userData))
+    localStorage.setItem("token", accessToken)
+
     setUser(userData)
+    setToken(accessToken)
   }
 
   const handleLogout = () => {
     localStorage.removeItem("user")
+    localStorage.removeItem("token")
+
     setUser(null)
+    setToken(null)
     setAdminView("admin")
   }
 
-  if (!user) {
+  if (!user || !token) {
     return <Login onLogin={handleLogin} />
   }
 
@@ -144,7 +153,7 @@ export default function App() {
         {currentView === "admin" && <AdminPanel />}
         {currentView === "products" && <AdminProducts />}
         {currentView === "tables" && <AdminTables />}
-        {currentView === "users" && <AdminUsers />}
+        {currentView === "users" && <AdminUsers token={token} />}
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}

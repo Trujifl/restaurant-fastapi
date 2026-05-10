@@ -1,14 +1,18 @@
-    import { useState } from "react"
+import { useState } from "react"
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError("")
 
     try {
+      setLoading(true)
+
       const res = await fetch("http://127.0.0.1:8000/auth/login", {
         method: "POST",
         headers: {
@@ -21,13 +25,20 @@ export default function Login({ onLogin }) {
       })
 
       if (!res.ok) {
-        throw new Error("Credenciales incorrectas")
+        const errorData = await res.json()
+        throw new Error(errorData.detail || "Credenciales incorrectas")
       }
 
       const data = await res.json()
-      onLogin(data)
+
+      localStorage.setItem("token", data.access_token)
+      localStorage.setItem("user", JSON.stringify(data.user))
+
+      onLogin(data.user, data.access_token)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -37,10 +48,14 @@ export default function Login({ onLogin }) {
         onSubmit={handleSubmit}
         className="w-full max-w-md rounded-2xl bg-white p-8 shadow"
       >
-        <h2 className="mb-6 text-3xl font-bold text-center">Login</h2>
+        <h2 className="mb-6 text-center text-3xl font-bold text-gray-800">
+          Login
+        </h2>
 
         {error && (
-          <p className="mb-4 text-red-500 text-center">{error}</p>
+          <p className="mb-4 rounded-lg bg-red-50 p-3 text-center text-red-600">
+            {error}
+          </p>
         )}
 
         <input
@@ -61,9 +76,14 @@ export default function Login({ onLogin }) {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-blue-600 p-3 text-white font-semibold hover:bg-blue-700"
+          disabled={loading}
+          className={`w-full rounded-lg p-3 font-semibold text-white ${
+            loading
+              ? "cursor-not-allowed bg-gray-400"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Iniciar sesión
+          {loading ? "Ingresando..." : "Iniciar sesión"}
         </button>
       </form>
     </div>

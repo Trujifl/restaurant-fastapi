@@ -6,6 +6,7 @@ from database import SessionLocal
 from models.user import User
 from schemas.user import UserResponse, UserUpdate
 from utils.security import hash_password
+from utils.auth import require_roles
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -23,12 +24,19 @@ def get_db():
 
 
 @router.get("/", response_model=List[UserResponse])
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["admin"])),
+):
     return db.query(User).order_by(User.id.asc()).all()
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["admin"])),
+):
     db_user = db.query(User).filter(User.id == user_id).first()
 
     if not db_user:
@@ -42,6 +50,7 @@ def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["admin"])),
 ):
     db_user = db.query(User).filter(User.id == user_id).first()
 
@@ -85,6 +94,7 @@ def update_user_status(
     user_id: int,
     is_active: bool,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["admin"])),
 ):
     db_user = db.query(User).filter(User.id == user_id).first()
 

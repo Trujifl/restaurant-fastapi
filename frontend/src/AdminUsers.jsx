@@ -6,7 +6,7 @@ const REGISTER_API = "http://localhost:8000/auth/register"
 
 const ROLES = ["admin", "waiter", "kitchen", "cashier"]
 
-export default function AdminUsers() {
+export default function AdminUsers({ token }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -28,10 +28,18 @@ export default function AdminUsers() {
     password: "",
   })
 
+  const authHeaders = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(USERS_API)
+
+      const res = await axios.get(USERS_API, authHeaders)
+
       setUsers(res.data)
       setError("")
     } catch (err) {
@@ -91,6 +99,7 @@ export default function AdminUsers() {
 
   const startEditing = (user) => {
     setEditingId(user.id)
+
     setEditForm({
       name: user.name || "",
       email: user.email || "",
@@ -102,6 +111,7 @@ export default function AdminUsers() {
 
   const cancelEditing = () => {
     setEditingId(null)
+
     setEditForm({
       name: "",
       email: "",
@@ -136,7 +146,7 @@ export default function AdminUsers() {
     try {
       setSaving(true)
 
-      await axios.patch(`${USERS_API}${userId}`, payload)
+      await axios.patch(`${USERS_API}${userId}`, payload, authHeaders)
 
       cancelEditing()
       await fetchUsers()
@@ -153,7 +163,9 @@ export default function AdminUsers() {
       setSaving(true)
 
       await axios.patch(
-        `${USERS_API}${user.id}/status?is_active=${!user.is_active}`
+        `${USERS_API}${user.id}/status?is_active=${!user.is_active}`,
+        null,
+        authHeaders
       )
 
       await fetchUsers()
@@ -181,8 +193,10 @@ export default function AdminUsers() {
   }
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    if (token) {
+      fetchUsers()
+    }
+  }, [token])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -191,6 +205,7 @@ export default function AdminUsers() {
           <h2 className="text-3xl font-bold text-gray-800">
             👥 Users Manager
           </h2>
+
           <p className="mt-1 text-gray-500">
             Create, edit and manage restaurant staff accounts.
           </p>
@@ -198,7 +213,8 @@ export default function AdminUsers() {
 
         <button
           onClick={fetchUsers}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          disabled={!token}
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh
         </button>
@@ -283,21 +299,27 @@ export default function AdminUsers() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="p-3 text-sm font-semibold text-gray-600">ID</th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Name
                 </th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Email
                 </th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Role
                 </th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Active
                 </th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   New password
                 </th>
+
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Actions
                 </th>
@@ -432,6 +454,7 @@ export default function AdminUsers() {
                       {isEditing ? (
                         <div className="flex flex-wrap gap-2">
                           <button
+                            type="button"
                             onClick={() => saveUser(user.id)}
                             disabled={saving}
                             className="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-gray-400"
@@ -440,6 +463,7 @@ export default function AdminUsers() {
                           </button>
 
                           <button
+                            type="button"
                             onClick={cancelEditing}
                             disabled={saving}
                             className="rounded-lg bg-gray-500 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-600 disabled:bg-gray-400"
@@ -450,6 +474,7 @@ export default function AdminUsers() {
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           <button
+                            type="button"
                             onClick={() => startEditing(user)}
                             className="rounded-lg bg-yellow-500 px-3 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
                           >
@@ -457,6 +482,7 @@ export default function AdminUsers() {
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => toggleUserStatus(user)}
                             disabled={saving}
                             className={`rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:bg-gray-400 ${
