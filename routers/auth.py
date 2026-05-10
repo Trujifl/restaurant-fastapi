@@ -55,27 +55,10 @@ def build_login_response(user: User):
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    if user.role not in ALLOWED_ROLES:
-        raise HTTPException(status_code=400, detail="Invalid role")
-
-    existing_user = db.query(User).filter(User.email == user.email).first()
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    new_user = User(
-        name=user.name,
-        email=user.email,
-        hashed_password=hash_password(user.password),
-        role=user.role,
-        is_active=True,
+    raise HTTPException(
+        status_code=403,
+        detail="Public registration is disabled. Users must be created by an admin.",
     )
-
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return new_user
 
 
 @router.post("/login", response_model=LoginResponse)

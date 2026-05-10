@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import axios from "axios"
 
 const USERS_API = "http://localhost:8000/users/"
-const REGISTER_API = "http://localhost:8000/auth/register"
 
 const ROLES = ["admin", "waiter", "kitchen", "cashier"]
 
@@ -80,12 +79,16 @@ export default function AdminUsers({ token }) {
     try {
       setSaving(true)
 
-      await axios.post(REGISTER_API, {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        role: form.role,
-        password: form.password,
-      })
+      await axios.post(
+        USERS_API,
+        {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          role: form.role,
+          password: form.password,
+        },
+        authHeaders
+      )
 
       resetForm()
       await fetchUsers()
@@ -172,6 +175,30 @@ export default function AdminUsers({ token }) {
     } catch (err) {
       console.error("Error changing user status:", err)
       alert(err.response?.data?.detail || "No se pudo cambiar el estado.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteUser = async (user) => {
+    const confirmDelete = window.confirm(
+      `¿Seguro que quieres eliminar al usuario "${user.name}"?\n\nSi tiene órdenes asociadas, el backend no permitirá borrarlo.`
+    )
+
+    if (!confirmDelete) return
+
+    try {
+      setSaving(true)
+
+      await axios.delete(`${USERS_API}${user.id}`, authHeaders)
+
+      await fetchUsers()
+    } catch (err) {
+      console.error("Error deleting user:", err)
+      alert(
+        err.response?.data?.detail ||
+          "No se pudo eliminar el usuario. Prueba desactivarlo."
+      )
     } finally {
       setSaving(false)
     }
@@ -299,27 +326,21 @@ export default function AdminUsers({ token }) {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="p-3 text-sm font-semibold text-gray-600">ID</th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Name
                 </th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Email
                 </th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Role
                 </th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Active
                 </th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   New password
                 </th>
-
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Actions
                 </th>
@@ -492,6 +513,15 @@ export default function AdminUsers({ token }) {
                             }`}
                           >
                             {user.is_active ? "Deactivate" : "Activate"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(user)}
+                            disabled={saving}
+                            className="rounded-lg bg-red-800 px-3 py-2 text-sm font-semibold text-white hover:bg-red-900 disabled:bg-gray-400"
+                          >
+                            Delete
                           </button>
                         </div>
                       )}
