@@ -9,6 +9,7 @@ from routers import product
 from routers import table as table_router
 from routers import order as order_router
 from routers import auth as auth_router
+from routers import user as user_router
 
 app = FastAPI(
     docs_url="/api/docs",
@@ -19,7 +20,7 @@ allowed_origins = [
     origin.strip()
     for origin in os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://3.137.206.197"
+        "http://localhost:5173,http://127.0.0.1:5173,http://3.137.206.197"
     ).split(",")
 ]
 
@@ -37,6 +38,7 @@ app.include_router(product.router)
 app.include_router(table_router.router)
 app.include_router(order_router.router)
 app.include_router(auth_router.router)
+app.include_router(user_router.router)
 
 
 @app.get("/")
