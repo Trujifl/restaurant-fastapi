@@ -3,6 +3,8 @@ import KitchenView from "./KitchenView"
 import TableOrders from "./TableOrders"
 import CashierView from "./CashierView"
 import AdminPanel from "./AdminPanel"
+import AdminProducts from "./AdminProducts"
+import AdminTables from "./AdminTables"
 import Login from "./Login"
 
 export default function App() {
@@ -71,6 +73,28 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setAdminView("products")}
+              className={`px-6 py-4 text-2xl font-semibold ${
+                adminView === "products"
+                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                  : "hover:bg-gray-50"
+              }`}
+            >
+              📦 Products
+            </button>
+
+            <button
+              onClick={() => setAdminView("tables")}
+              className={`px-6 py-4 text-2xl font-semibold ${
+                adminView === "tables"
+                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                  : "hover:bg-gray-50"
+              }`}
+            >
+              🪑 Tables
+            </button>
+
+            <button
               onClick={() => setAdminView("waiter")}
               className={`px-6 py-4 text-2xl font-semibold ${
                 adminView === "waiter"
@@ -106,6 +130,8 @@ export default function App() {
         )}
 
         {currentView === "admin" && <AdminPanel />}
+        {currentView === "products" && <AdminProducts />}
+        {currentView === "tables" && <AdminTables />}
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
