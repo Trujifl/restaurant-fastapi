@@ -5,7 +5,7 @@ const TABLES_API = "http://localhost:8000/tables/";
 const PRODUCTS_API = "http://localhost:8000/products/";
 const ORDERS_API = "http://localhost:8000/orders/";
 
-export default function TableOrders() {
+export default function TableOrders({ token }) {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
@@ -18,10 +18,16 @@ export default function TableOrders() {
   const [orderProducts, setOrderProducts] = useState([]);
   const [orderNote, setOrderNote] = useState("");
 
+  const authHeaders = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+
   const fetchTables = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(TABLES_API);
+      const res = await axios.get(TABLES_API, authHeaders);
       setTables(res.data);
       setError(null);
       return res.data;
@@ -37,7 +43,7 @@ export default function TableOrders() {
   const fetchProducts = async () => {
     try {
       setProductsLoading(true);
-      const res = await axios.get(PRODUCTS_API);
+      const res = await axios.get(PRODUCTS_API, authHeaders);
       setProducts(res.data);
     } catch (err) {
       console.error("Error fetching products:", err);
@@ -48,7 +54,7 @@ export default function TableOrders() {
 
   const fetchOrderByTable = async (tableId) => {
     try {
-      const res = await axios.get(`${ORDERS_API}by_table/${tableId}`);
+      const res = await axios.get(`${ORDERS_API}by_table/${tableId}`, authHeaders);
       setActiveOrder(res.data);
       return res.data;
     } catch (err) {
@@ -59,7 +65,7 @@ export default function TableOrders() {
 
   const fetchOrderHistory = async (tableId) => {
     try {
-      const res = await axios.get(`${ORDERS_API}history/${tableId}`);
+      const res = await axios.get(`${ORDERS_API}history/${tableId}`, authHeaders);
       setOrderHistory(res.data);
     } catch (err) {
       console.error("Error fetching order history:", err);
@@ -96,10 +102,15 @@ export default function TableOrders() {
     const newState = table.status === "occupied" ? "available" : "occupied";
 
     try {
-      await axios.patch(`${TABLES_API}${table.id}/status`, { status: newState });
+      await axios.patch(
+        `${TABLES_API}${table.id}/status`,
+        { status: newState },
+        authHeaders
+      );
       await refreshSelectedTable(table.id);
     } catch (err) {
       console.error("Error changing table status:", err);
+      alert(err.response?.data?.detail || "No se pudo cambiar el estado de la mesa.");
     }
   };
 
@@ -160,16 +171,20 @@ export default function TableOrders() {
     }
 
     try {
-      const res = await axios.post(ORDERS_API, {
-        table_id: selectedTable.id,
-        user_id: 1,
-        status: "pending",
-        note: orderNote,
-        items: orderProducts.map((product) => ({
-          product_id: product.id,
-          quantity: product.quantity,
-        })),
-      });
+      const res = await axios.post(
+        ORDERS_API,
+        {
+          table_id: selectedTable.id,
+          user_id: 1,
+          status: "pending",
+          note: orderNote,
+          items: orderProducts.map((product) => ({
+            product_id: product.id,
+            quantity: product.quantity,
+          })),
+        },
+        authHeaders
+      );
 
       setActiveOrder(res.data);
       setOrderProducts([]);
@@ -186,14 +201,14 @@ export default function TableOrders() {
 
     try {
       setStatusLoading(true);
-      await axios.patch(`${ORDERS_API}${activeOrder.id}/cancel`);
+      await axios.patch(`${ORDERS_API}${activeOrder.id}/cancel`, null, authHeaders);
       setActiveOrder(null);
       setOrderProducts([]);
       setOrderNote("");
       await refreshSelectedTable(selectedTable.id);
     } catch (err) {
       console.error("Error cancelling order:", err);
-      alert("No se pudo cancelar la orden.");
+      alert(err.response?.data?.detail || "No se pudo cancelar la orden.");
     } finally {
       setStatusLoading(false);
     }
@@ -204,14 +219,14 @@ export default function TableOrders() {
 
     try {
       setStatusLoading(true);
-      await axios.patch(`${ORDERS_API}${activeOrder.id}/close`);
+      await axios.patch(`${ORDERS_API}${activeOrder.id}/close`, null, authHeaders);
       setActiveOrder(null);
       setOrderProducts([]);
       setOrderNote("");
       await refreshSelectedTable(selectedTable.id);
     } catch (err) {
       console.error("Error closing order:", err);
-      alert("No se pudo cerrar la orden.");
+      alert(err.response?.data?.detail || "No se pudo cerrar la orden.");
     } finally {
       setStatusLoading(false);
     }
@@ -295,9 +310,11 @@ export default function TableOrders() {
   };
 
   useEffect(() => {
-    fetchTables();
-    fetchProducts();
-  }, []);
+    if (token) {
+      fetchTables();
+      fetchProducts();
+    }
+  }, [token]);
 
   return (
     <div className="p-6 max-w-6xl mx-auto bg-white rounded-2xl shadow border border-gray-200">

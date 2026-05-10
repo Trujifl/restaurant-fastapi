@@ -5,13 +5,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from schemas import table as table_schema
 from models import table as table_model
 from models import order as order_model
+from models.user import User
 from database import SessionLocal
+from utils.auth import require_roles
 
 
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
 
 ACTIVE_ORDER_STATUSES = ["pending", "in_progress", "ready", "delivered"]
+
+ADMIN_ONLY = ["admin"]
+TABLE_READ_ROLES = ["admin", "waiter", "cashier"]
+TABLE_STATUS_ROLES = ["admin", "waiter"]
 
 
 def get_db():
@@ -23,7 +29,11 @@ def get_db():
 
 
 @router.post("/", response_model=table_schema.Table)
-def create_table(table_data: table_schema.TableCreate, db: Session = Depends(get_db)):
+def create_table(
+    table_data: table_schema.TableCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN_ONLY)),
+):
     existing_table = db.query(table_model.Table).filter(
         table_model.Table.number == table_data.number
     ).first()
@@ -41,12 +51,19 @@ def create_table(table_data: table_schema.TableCreate, db: Session = Depends(get
 
 
 @router.get("/", response_model=list[table_schema.Table])
-def get_tables(db: Session = Depends(get_db)):
+def get_tables(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(TABLE_READ_ROLES)),
+):
     return db.query(table_model.Table).all()
 
 
 @router.get("/{table_id}", response_model=table_schema.Table)
-def get_table_by_id(table_id: int, db: Session = Depends(get_db)):
+def get_table_by_id(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(TABLE_READ_ROLES)),
+):
     db_table = db.query(table_model.Table).filter(
         table_model.Table.id == table_id
     ).first()
@@ -62,6 +79,7 @@ def update_table(
     table_id: int,
     updated_data: table_schema.TableCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN_ONLY)),
 ):
     db_table = db.query(table_model.Table).filter(
         table_model.Table.id == table_id
@@ -92,6 +110,7 @@ def update_table_status_only(
     table_id: int,
     data: table_schema.TableStatusUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(TABLE_STATUS_ROLES)),
 ):
     db_table = db.query(table_model.Table).filter(
         table_model.Table.id == table_id
@@ -109,7 +128,11 @@ def update_table_status_only(
 
 
 @router.delete("/{table_id}", status_code=204)
-def delete_table(table_id: int, db: Session = Depends(get_db)):
+def delete_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN_ONLY)),
+):
     db_table = db.query(table_model.Table).filter(
         table_model.Table.id == table_id
     ).first()

@@ -3,7 +3,7 @@ import axios from "axios"
 
 const TABLES_API = "http://localhost:8000/tables/"
 
-export default function AdminTables() {
+export default function AdminTables({ token }) {
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -14,10 +14,18 @@ export default function AdminTables() {
     status: "available",
   })
 
+  const authHeaders = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+
   const fetchTables = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(TABLES_API)
+
+      const res = await axios.get(TABLES_API, authHeaders)
+
       setTables(res.data)
       setError("")
     } catch (err) {
@@ -55,10 +63,14 @@ export default function AdminTables() {
     try {
       setSaving(true)
 
-      await axios.post(TABLES_API, {
-        number: Number(form.number),
-        status: form.status,
-      })
+      await axios.post(
+        TABLES_API,
+        {
+          number: Number(form.number),
+          status: form.status,
+        },
+        authHeaders
+      )
 
       resetForm()
       await fetchTables()
@@ -76,9 +88,13 @@ export default function AdminTables() {
     try {
       setSaving(true)
 
-      await axios.patch(`${TABLES_API}${table.id}/status`, {
-        status: newStatus,
-      })
+      await axios.patch(
+        `${TABLES_API}${table.id}/status`,
+        {
+          status: newStatus,
+        },
+        authHeaders
+      )
 
       await fetchTables()
     } catch (err) {
@@ -99,7 +115,7 @@ export default function AdminTables() {
     try {
       setSaving(true)
 
-      await axios.delete(`${TABLES_API}${table.id}`)
+      await axios.delete(`${TABLES_API}${table.id}`, authHeaders)
 
       await fetchTables()
     } catch (err) {
@@ -122,8 +138,10 @@ export default function AdminTables() {
   }
 
   useEffect(() => {
-    fetchTables()
-  }, [])
+    if (token) {
+      fetchTables()
+    }
+  }, [token])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -139,7 +157,8 @@ export default function AdminTables() {
 
         <button
           onClick={fetchTables}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          disabled={!token}
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh
         </button>
@@ -244,6 +263,7 @@ export default function AdminTables() {
                   <td className="p-3">
                     <div className="flex flex-wrap gap-2">
                       <button
+                        type="button"
                         onClick={() => changeTableStatus(table)}
                         disabled={saving}
                         className="rounded-lg bg-yellow-500 px-3 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:bg-gray-400"
@@ -252,6 +272,7 @@ export default function AdminTables() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => deleteTable(table)}
                         disabled={saving}
                         className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-gray-400"

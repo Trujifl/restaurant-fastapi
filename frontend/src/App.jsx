@@ -151,12 +151,12 @@ export default function App() {
         )}
 
         {currentView === "admin" && <AdminPanel />}
-        {currentView === "products" && <AdminProducts />}
-        {currentView === "tables" && <AdminTables />}
+        {currentView === "products" && <AdminProducts token={token} />}
+        {currentView === "tables" && <AdminTables token={token} />}
         {currentView === "users" && <AdminUsers token={token} />}
-        {currentView === "waiter" && <TableOrders />}
-        {currentView === "kitchen" && <KitchenView />}
-        {currentView === "cashier" && <CashierView />}
+        {currentView === "waiter" && <TableOrders token={token} />}
+        {currentView === "kitchen" && <KitchenView token={token} />}
+        {currentView === "cashier" && <CashierView token={token} />}
 
         {!["waiter", "kitchen", "cashier", "admin"].includes(normalizedRole) && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">

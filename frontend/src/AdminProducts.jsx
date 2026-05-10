@@ -3,7 +3,7 @@ import axios from "axios"
 
 const PRODUCTS_API = "http://localhost:8000/products/"
 
-export default function AdminProducts() {
+export default function AdminProducts({ token }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -22,10 +22,18 @@ export default function AdminProducts() {
     category: "",
   })
 
+  const authHeaders = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(PRODUCTS_API)
+
+      const res = await axios.get(PRODUCTS_API, authHeaders)
+
       setProducts(res.data)
       setError("")
     } catch (err) {
@@ -60,11 +68,15 @@ export default function AdminProducts() {
     try {
       setSaving(true)
 
-      await axios.post(PRODUCTS_API, {
-        name: form.name.trim(),
-        price: Number(form.price),
-        category: form.category.trim() || null,
-      })
+      await axios.post(
+        PRODUCTS_API,
+        {
+          name: form.name.trim(),
+          price: Number(form.price),
+          category: form.category.trim() || null,
+        },
+        authHeaders
+      )
 
       resetForm()
       await fetchProducts()
@@ -108,11 +120,15 @@ export default function AdminProducts() {
     try {
       setSaving(true)
 
-      await axios.patch(`${PRODUCTS_API}${productId}`, {
-        name: editForm.name.trim(),
-        price: Number(editForm.price),
-        category: editForm.category.trim() || null,
-      })
+      await axios.patch(
+        `${PRODUCTS_API}${productId}`,
+        {
+          name: editForm.name.trim(),
+          price: Number(editForm.price),
+          category: editForm.category.trim() || null,
+        },
+        authHeaders
+      )
 
       cancelEditing()
       await fetchProducts()
@@ -134,7 +150,7 @@ export default function AdminProducts() {
     try {
       setSaving(true)
 
-      await axios.delete(`${PRODUCTS_API}${product.id}`)
+      await axios.delete(`${PRODUCTS_API}${product.id}`, authHeaders)
 
       await fetchProducts()
     } catch (err) {
@@ -146,8 +162,10 @@ export default function AdminProducts() {
   }
 
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    if (token) {
+      fetchProducts()
+    }
+  }, [token])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -163,7 +181,8 @@ export default function AdminProducts() {
 
         <button
           onClick={fetchProducts}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          disabled={!token}
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh
         </button>
@@ -331,6 +350,7 @@ export default function AdminProducts() {
                       {isEditing ? (
                         <div className="flex flex-wrap gap-2">
                           <button
+                            type="button"
                             onClick={() => saveProduct(product.id)}
                             disabled={saving}
                             className="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-gray-400"
@@ -339,6 +359,7 @@ export default function AdminProducts() {
                           </button>
 
                           <button
+                            type="button"
                             onClick={cancelEditing}
                             disabled={saving}
                             className="rounded-lg bg-gray-500 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-600 disabled:bg-gray-400"
@@ -349,6 +370,7 @@ export default function AdminProducts() {
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           <button
+                            type="button"
                             onClick={() => startEditing(product)}
                             className="rounded-lg bg-yellow-500 px-3 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
                           >
@@ -356,6 +378,7 @@ export default function AdminProducts() {
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => deleteProduct(product)}
                             className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
                           >
