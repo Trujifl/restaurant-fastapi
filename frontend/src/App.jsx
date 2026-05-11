@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+
 import KitchenView from "./KitchenView"
 import TableOrders from "./TableOrders"
 import CashierView from "./CashierView"
@@ -6,42 +7,70 @@ import AdminPanel from "./AdminPanel"
 import AdminProducts from "./AdminProducts"
 import AdminTables from "./AdminTables"
 import AdminUsers from "./AdminUsers"
-import Login from "./Login"
+
+import Login from "./components/Login"
+import { getCurrentUser, getToken, removeToken } from "./auth/authService"
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
   const [adminView, setAdminView] = useState("admin")
+  const [loadingSession, setLoadingSession] = useState(true)
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user")
-    const savedToken = localStorage.getItem("token")
+    async function loadSession() {
+      const savedToken = getToken()
 
-    if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser))
-      setToken(savedToken)
+      if (!savedToken) {
+        setLoadingSession(false)
+        return
+      }
+
+      try {
+        const currentUser = await getCurrentUser()
+
+        setUser(currentUser)
+        setToken(savedToken)
+      } catch (error) {
+        console.error(error)
+        removeToken()
+        setUser(null)
+        setToken(null)
+      } finally {
+        setLoadingSession(false)
+      }
     }
+
+    loadSession()
   }, [])
 
-  const handleLogin = (userData, accessToken) => {
-    localStorage.setItem("user", JSON.stringify(userData))
-    localStorage.setItem("token", accessToken)
+  function handleLoginSuccess(userData) {
+    const savedToken = getToken()
 
     setUser(userData)
-    setToken(accessToken)
+    setToken(savedToken)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user")
-    localStorage.removeItem("token")
+  function handleLogout() {
+    removeToken()
 
     setUser(null)
     setToken(null)
     setAdminView("admin")
   }
 
+  if (loadingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <div className="rounded-2xl bg-white px-8 py-6 text-xl font-semibold text-slate-700 shadow">
+          Loading session...
+        </div>
+      </div>
+    )
+  }
+
   if (!user || !token) {
-    return <Login onLogin={handleLogin} />
+    return <Login onLoginSuccess={handleLoginSuccess} />
   }
 
   const normalizedRole = user.role?.trim().toLowerCase()
@@ -158,7 +187,12 @@ export default function App() {
         {currentView === "kitchen" && <KitchenView token={token} />}
         {currentView === "cashier" && <CashierView token={token} />}
 
-        {!["waiter", "kitchen", "cashier", "admin"].includes(normalizedRole) && (
+        {![
+          "waiter",
+          "kitchen",
+          "cashier",
+          "admin",
+        ].includes(normalizedRole) && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
             Invalid role: {user.role}
           </div>
