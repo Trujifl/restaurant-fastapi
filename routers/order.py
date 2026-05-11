@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 from schemas import order as order_schema
 from models import order as order_model
 from models import table as table_model
+from models.user import User
 from database import SessionLocal
 from typing import List
 from datetime import datetime, time
+
+from utils.auth import require_roles
 
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -24,6 +27,16 @@ VALID_TRANSITIONS = {
 }
 
 
+ORDER_READ_ROLES = ["admin", "waiter", "kitchen", "cashier"]
+ORDER_CREATE_ROLES = ["admin", "waiter", "cashier"]
+ORDER_KITCHEN_ROLES = ["admin", "kitchen"]
+ORDER_DELIVERY_ROLES = ["admin", "waiter", "cashier"]
+ORDER_CLOSE_ROLES = ["admin", "cashier"]
+ORDER_CANCEL_ROLES = ["admin", "waiter", "cashier"]
+ORDER_DELETE_ROLES = ["admin"]
+ORDER_SUMMARY_ROLES = ["admin", "cashier"]
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -33,7 +46,11 @@ def get_db():
 
 
 @router.get("/by_table/{table_id}", response_model=order_schema.Order)
-def get_order_by_table(table_id: int, db: Session = Depends(get_db)):
+def get_order_by_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_READ_ROLES)),
+):
     order = db.query(order_model.Order).filter(
         order_model.Order.table_id == table_id,
         order_model.Order.status.in_(ACTIVE_ORDER_STATUSES),
@@ -46,14 +63,21 @@ def get_order_by_table(table_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/history/{table_id}", response_model=List[order_schema.Order])
-def get_order_history_by_table(table_id: int, db: Session = Depends(get_db)):
+def get_order_history_by_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_READ_ROLES)),
+):
     return db.query(order_model.Order).filter(
         order_model.Order.table_id == table_id
     ).order_by(order_model.Order.timestamp.desc()).all()
 
 
 @router.get("/summary/daily")
-def get_daily_summary(db: Session = Depends(get_db)):
+def get_daily_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_SUMMARY_ROLES)),
+):
     today = datetime.now().date()
 
     start_of_day = datetime.combine(today, time.min)
@@ -92,7 +116,11 @@ def get_daily_summary(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=order_schema.Order)
-def create_order(order_data: order_schema.OrderCreate, db: Session = Depends(get_db)):
+def create_order(
+    order_data: order_schema.OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_CREATE_ROLES)),
+):
     existing_order = db.query(order_model.Order).filter(
         order_model.Order.table_id == order_data.table_id,
         order_model.Order.status.in_(ACTIVE_ORDER_STATUSES),
@@ -110,7 +138,7 @@ def create_order(order_data: order_schema.OrderCreate, db: Session = Depends(get
 
     db_order = order_model.Order(
         table_id=order_data.table_id,
-        user_id=order_data.user_id,
+        user_id=current_user.id,
         status="pending",
         note=order_data.note,
     )
@@ -140,6 +168,7 @@ def update_order_status(
     order_id: int,
     status_data: order_schema.OrderStatusUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_READ_ROLES)),
 ):
     db_order = db.query(order_model.Order).filter(
         order_model.Order.id == order_id
@@ -158,6 +187,30 @@ def update_order_status(
         raise HTTPException(
             status_code=400,
             detail=f"Invalid transition from {current_status} to {new_status}",
+        )
+
+    if new_status in ["in_progress", "ready"] and current_user.role not in ORDER_KITCHEN_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only kitchen or admin can move orders to this status",
+        )
+
+    if new_status == "delivered" and current_user.role not in ORDER_DELIVERY_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only waiter, cashier or admin can mark orders as delivered",
+        )
+
+    if new_status == "completed" and current_user.role not in ORDER_CLOSE_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only cashier or admin can complete orders",
+        )
+
+    if new_status == "cancelled" and current_user.role not in ORDER_CANCEL_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only waiter, cashier or admin can cancel orders",
         )
 
     table = db.query(table_model.Table).filter(
@@ -179,7 +232,11 @@ def update_order_status(
 
 
 @router.patch("/{order_id}/close", response_model=order_schema.Order)
-def close_order(order_id: int, db: Session = Depends(get_db)):
+def close_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_CLOSE_ROLES)),
+):
     db_order = db.query(order_model.Order).filter(
         order_model.Order.id == order_id
     ).first()
@@ -209,7 +266,11 @@ def close_order(order_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{order_id}/cancel", response_model=order_schema.Order)
-def cancel_order(order_id: int, db: Session = Depends(get_db)):
+def cancel_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_CANCEL_ROLES)),
+):
     db_order = db.query(order_model.Order).filter(
         order_model.Order.id == order_id
     ).first()
@@ -239,12 +300,19 @@ def cancel_order(order_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[order_schema.Order])
-def get_orders(db: Session = Depends(get_db)):
+def get_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_READ_ROLES)),
+):
     return db.query(order_model.Order).all()
 
 
 @router.get("/{order_id}", response_model=order_schema.Order)
-def get_order(order_id: int, db: Session = Depends(get_db)):
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_READ_ROLES)),
+):
     order = db.query(order_model.Order).filter(
         order_model.Order.id == order_id
     ).first()
@@ -256,7 +324,11 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{order_id}", status_code=204)
-def delete_order(order_id: int, db: Session = Depends(get_db)):
+def delete_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ORDER_DELETE_ROLES)),
+):
     order = db.query(order_model.Order).filter(
         order_model.Order.id == order_id
     ).first()

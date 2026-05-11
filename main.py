@@ -3,13 +3,14 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine
+from database import Base, engine, SessionLocal
 from models import order, product, table, user
 from routers import product
 from routers import table as table_router
 from routers import order as order_router
 from routers import auth as auth_router
 from routers import user as user_router
+from seed import create_default_admin
 
 app = FastAPI(
     docs_url="/api/docs",
@@ -33,6 +34,12 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+
+db = SessionLocal()
+try:
+    create_default_admin(db)
+finally:
+    db.close()
 
 app.include_router(product.router)
 app.include_router(table_router.router)

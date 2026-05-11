@@ -1,17 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models.user import User
-from schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
-from utils.security import hash_password, verify_password, create_access_token
+from schemas.user import UserResponse, Token
+from utils.security import verify_password, create_access_token
+from utils.auth import get_current_user
 
 
-router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-ALLOWED_ROLES = ["admin", "waiter", "kitchen", "cashier"]
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 def get_db():
@@ -32,7 +30,10 @@ def authenticate_user(email: str, password: str, db: Session):
         return None
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+        )
 
     return user
 
@@ -42,56 +43,49 @@ def build_login_response(user: User):
         data={
             "sub": user.email,
             "role": user.role,
-            "user_id": user.id,
         }
     )
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": user,
     }
 
 
-@router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    raise HTTPException(
-        status_code=403,
-        detail="Public registration is disabled. Users must be created by an admin.",
-    )
-
-
-@router.post("/login", response_model=LoginResponse)
-def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
-    user = authenticate_user(
-        email=user_credentials.email,
-        password=user_credentials.password,
-        db=db,
-    )
+@router.post("/login", response_model=Token)
+def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    user = authenticate_user(form_data.username, form_data.password, db)
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return build_login_response(user)
 
 
-@router.post("/token")
-def token(
+@router.post("/token", response_model=Token, include_in_schema=False)
+def token_alias(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    user = authenticate_user(
-        email=form_data.username,
-        password=form_data.password,
-        db=db,
-    )
+    user = authenticate_user(form_data.username, form_data.password, db)
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    login_response = build_login_response(user)
+    return build_login_response(user)
 
-    return {
-        "access_token": login_response["access_token"],
-        "token_type": login_response["token_type"],
-    }
+
+@router.get("/me", response_model=UserResponse)
+def get_my_profile(current_user: User = Depends(get_current_user)):
+    return current_user
