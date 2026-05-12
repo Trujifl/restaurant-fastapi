@@ -1,121 +1,124 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useEffect, useMemo, useState } from "react"
+import api from "./api/axios"
 
-const TABLES_API = "http://localhost:8000/tables/";
-const PRODUCTS_API = "http://localhost:8000/products/";
-const ORDERS_API = "http://localhost:8000/orders/";
+export default function TableOrders() {
+  const [tables, setTables] = useState([])
+  const [selectedTable, setSelectedTable] = useState(null)
+  const [activeOrder, setActiveOrder] = useState(null)
+  const [orderHistory, setOrderHistory] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [products, setProducts] = useState([])
+  const [orderProducts, setOrderProducts] = useState([])
+  const [orderNote, setOrderNote] = useState("")
 
-export default function TableOrders({ token }) {
-  const [tables, setTables] = useState([]);
-  const [selectedTable, setSelectedTable] = useState(null);
-  const [activeOrder, setActiveOrder] = useState(null);
-  const [orderHistory, setOrderHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [orderProducts, setOrderProducts] = useState([]);
-  const [orderNote, setOrderNote] = useState("");
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
 
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  };
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
+  }
 
   const fetchTables = async () => {
     try {
-      setLoading(true);
-      const res = await axios.get(TABLES_API, authHeaders);
-      setTables(res.data);
-      setError(null);
-      return res.data;
+      setLoading(true)
+      const res = await api.get("/tables/")
+      setTables(res.data)
+      setError(null)
+      return res.data
     } catch (err) {
-      console.error("Error fetching tables:", err);
-      setError("No se pudieron cargar las mesas");
-      return [];
+      console.error("Error fetching tables:", err)
+      setError("No se pudieron cargar las mesas")
+      return []
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const fetchProducts = async () => {
     try {
-      setProductsLoading(true);
-      const res = await axios.get(PRODUCTS_API, authHeaders);
-      setProducts(res.data);
+      setProductsLoading(true)
+      const res = await api.get("/products/")
+      setProducts(res.data)
     } catch (err) {
-      console.error("Error fetching products:", err);
+      console.error("Error fetching products:", err)
     } finally {
-      setProductsLoading(false);
+      setProductsLoading(false)
     }
-  };
+  }
 
   const fetchOrderByTable = async (tableId) => {
     try {
-      const res = await axios.get(`${ORDERS_API}by_table/${tableId}`, authHeaders);
-      setActiveOrder(res.data);
-      return res.data;
+      const res = await api.get(`/orders/by_table/${tableId}`)
+      setActiveOrder(res.data)
+      return res.data
     } catch (err) {
-      setActiveOrder(null);
-      return null;
+      setActiveOrder(null)
+      return null
     }
-  };
+  }
 
   const fetchOrderHistory = async (tableId) => {
     try {
-      const res = await axios.get(`${ORDERS_API}history/${tableId}`, authHeaders);
-      setOrderHistory(res.data);
+      const res = await api.get(`/orders/history/${tableId}`)
+      setOrderHistory(res.data)
     } catch (err) {
-      console.error("Error fetching order history:", err);
-      setOrderHistory([]);
+      console.error("Error fetching order history:", err)
+      setOrderHistory([])
     }
-  };
+  }
 
   const refreshSelectedTable = async (tableId) => {
-    const updatedTables = await fetchTables();
+    const updatedTables = await fetchTables()
     const updatedSelectedTable =
-      updatedTables.find((table) => table.id === tableId) || null;
-    setSelectedTable(updatedSelectedTable);
-    await fetchOrderByTable(tableId);
-    await fetchOrderHistory(tableId);
-  };
+      updatedTables.find((table) => table.id === tableId) || null
+
+    setSelectedTable(updatedSelectedTable)
+
+    await fetchOrderByTable(tableId)
+    await fetchOrderHistory(tableId)
+  }
 
   const handleTableClick = async (table) => {
-    setSelectedTable(table);
-    setOrderProducts([]);
-    setOrderNote("");
-    await fetchOrderByTable(table.id);
-    await fetchOrderHistory(table.id);
-  };
+    setSelectedTable(table)
+    setOrderProducts([])
+    setOrderNote("")
+
+    await fetchOrderByTable(table.id)
+    await fetchOrderHistory(table.id)
+  }
 
   const selectedTableHasActiveOrder =
-    selectedTable && activeOrder && selectedTable.id === activeOrder.table_id;
+    selectedTable && activeOrder && selectedTable.id === activeOrder.table_id
 
   const toggleTableState = async (table) => {
     if (selectedTableHasActiveOrder && selectedTable?.id === table.id) {
-      alert("No puedes cambiar manualmente el estado de una mesa con una orden activa.");
-      return;
+      alert("No puedes cambiar manualmente el estado de una mesa con una orden activa.")
+      return
     }
 
-    const newState = table.status === "occupied" ? "available" : "occupied";
+    const newState = table.status === "occupied" ? "available" : "occupied"
 
     try {
-      await axios.patch(
-        `${TABLES_API}${table.id}/status`,
-        { status: newState },
-        authHeaders
-      );
-      await refreshSelectedTable(table.id);
+      await api.patch(`/tables/${table.id}/status`, { status: newState })
+      await refreshSelectedTable(table.id)
     } catch (err) {
-      console.error("Error changing table status:", err);
-      alert(err.response?.data?.detail || "No se pudo cambiar el estado de la mesa.");
+      console.error("Error changing table status:", err)
+      alert(getErrorMessage(err) || "No se pudo cambiar el estado de la mesa.")
     }
-  };
+  }
 
   const addProductToOrder = (product) => {
-    const existingProduct = orderProducts.find((item) => item.id === product.id);
+    const existingProduct = orderProducts.find((item) => item.id === product.id)
 
     if (existingProduct) {
       setOrderProducts(
@@ -124,12 +127,12 @@ export default function TableOrders({ token }) {
             ? { ...item, quantity: item.quantity + 1 }
             : item
         )
-      );
-      return;
+      )
+      return
     }
 
-    setOrderProducts([...orderProducts, { ...product, quantity: 1 }]);
-  };
+    setOrderProducts([...orderProducts, { ...product, quantity: 1 }])
+  }
 
   const increaseQuantity = (productId) => {
     setOrderProducts(
@@ -138,8 +141,8 @@ export default function TableOrders({ token }) {
           ? { ...item, quantity: item.quantity + 1 }
           : item
       )
-    );
-  };
+    )
+  }
 
   const decreaseQuantity = (productId) => {
     setOrderProducts(
@@ -150,149 +153,181 @@ export default function TableOrders({ token }) {
             : item
         )
         .filter((item) => item.quantity > 0)
-    );
-  };
+    )
+  }
 
   const clearOrderProducts = () => {
-    setOrderProducts([]);
-  };
+    setOrderProducts([])
+  }
 
   const createOrder = async () => {
-    if (!selectedTable) return;
+    if (!selectedTable) return
 
     if (activeOrder) {
-      alert("Esta mesa ya tiene una orden activa.");
-      return;
+      alert("Esta mesa ya tiene una orden activa.")
+      return
     }
 
     if (orderProducts.length === 0) {
-      alert("Debes agregar al menos un producto.");
-      return;
+      alert("Debes agregar al menos un producto.")
+      return
     }
 
     try {
-      const res = await axios.post(
-        ORDERS_API,
-        {
-          table_id: selectedTable.id,
-          user_id: 1,
-          status: "pending",
-          note: orderNote,
-          items: orderProducts.map((product) => ({
-            product_id: product.id,
-            quantity: product.quantity,
-          })),
-        },
-        authHeaders
-      );
+      const res = await api.post("/orders/", {
+        table_id: selectedTable.id,
+        note: orderNote,
+        items: orderProducts.map((product) => ({
+          product_id: product.id,
+          quantity: product.quantity,
+        })),
+      })
 
-      setActiveOrder(res.data);
-      setOrderProducts([]);
-      setOrderNote("");
-      await refreshSelectedTable(selectedTable.id);
+      setActiveOrder(res.data)
+      setOrderProducts([])
+      setOrderNote("")
+
+      await refreshSelectedTable(selectedTable.id)
     } catch (err) {
-      console.error("Error creating order:", err);
-      alert(err.response?.data?.detail || "No se pudo crear la orden.");
+      console.error("Error creating order:", err)
+      alert(getErrorMessage(err) || "No se pudo crear la orden.")
     }
-  };
+  }
+
+  const markAsDelivered = async () => {
+    if (!activeOrder) return
+
+    try {
+      setStatusLoading(true)
+
+      await api.patch(`/orders/${activeOrder.id}/status`, {
+        status: "delivered",
+      })
+
+      await refreshSelectedTable(selectedTable.id)
+    } catch (err) {
+      console.error("Error marking order as delivered:", err)
+      alert(getErrorMessage(err) || "No se pudo marcar la orden como entregada.")
+    } finally {
+      setStatusLoading(false)
+    }
+  }
 
   const cancelOrder = async () => {
-    if (!activeOrder) return;
+    if (!activeOrder) return
 
     try {
-      setStatusLoading(true);
-      await axios.patch(`${ORDERS_API}${activeOrder.id}/cancel`, null, authHeaders);
-      setActiveOrder(null);
-      setOrderProducts([]);
-      setOrderNote("");
-      await refreshSelectedTable(selectedTable.id);
+      setStatusLoading(true)
+
+      await api.patch(`/orders/${activeOrder.id}/cancel`)
+
+      setActiveOrder(null)
+      setOrderProducts([])
+      setOrderNote("")
+
+      await refreshSelectedTable(selectedTable.id)
     } catch (err) {
-      console.error("Error cancelling order:", err);
-      alert(err.response?.data?.detail || "No se pudo cancelar la orden.");
+      console.error("Error cancelling order:", err)
+      alert(getErrorMessage(err) || "No se pudo cancelar la orden.")
     } finally {
-      setStatusLoading(false);
+      setStatusLoading(false)
     }
-  };
+  }
 
   const closeOrder = async () => {
-    if (!activeOrder) return;
+    if (!activeOrder) return
 
     try {
-      setStatusLoading(true);
-      await axios.patch(`${ORDERS_API}${activeOrder.id}/close`, null, authHeaders);
-      setActiveOrder(null);
-      setOrderProducts([]);
-      setOrderNote("");
-      await refreshSelectedTable(selectedTable.id);
+      setStatusLoading(true)
+
+      await api.patch(`/orders/${activeOrder.id}/close`)
+
+      setActiveOrder(null)
+      setOrderProducts([])
+      setOrderNote("")
+
+      await refreshSelectedTable(selectedTable.id)
     } catch (err) {
-      console.error("Error closing order:", err);
-      alert(err.response?.data?.detail || "No se pudo cerrar la orden.");
+      console.error("Error closing order:", err)
+      alert(getErrorMessage(err) || "No se pudo cerrar la orden.")
     } finally {
-      setStatusLoading(false);
+      setStatusLoading(false)
     }
-  };
+  }
 
   const orderTotal = useMemo(() => {
     return orderProducts.reduce(
       (total, product) => total + product.price * product.quantity,
       0
-    );
-  }, [orderProducts]);
+    )
+  }, [orderProducts])
 
   const activeOrderTotal = useMemo(() => {
-    if (!activeOrder?.items) return 0;
+    if (!activeOrder?.items) return 0
 
     return activeOrder.items.reduce(
       (total, item) => total + (item.product?.price ?? 0) * item.quantity,
       0
-    );
-  }, [activeOrder]);
+    )
+  }, [activeOrder])
 
   const formatDate = (value) => {
-    if (!value) return "-";
-    return new Date(value).toLocaleString();
-  };
+    if (!value) return "-"
+    return new Date(value).toLocaleString()
+  }
 
   const getStatusStyles = (status) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800"
       case "in_progress":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800"
       case "ready":
-        return "bg-purple-100 text-purple-800";
+        return "bg-purple-100 text-purple-800"
       case "delivered":
-        return "bg-cyan-100 text-cyan-800";
+        return "bg-cyan-100 text-cyan-800"
       case "completed":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800"
       case "cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800"
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800"
     }
-  };
+  }
 
   const getStatusLabel = (status) => {
     switch (status) {
       case "pending":
-        return "Pendiente";
+        return "Pendiente"
       case "in_progress":
-        return "En preparación";
+        return "En preparación"
       case "ready":
-        return "Lista";
+        return "Entregada al garzón"
       case "delivered":
-        return "Entregada";
+        return "Entregada a la mesa"
       case "completed":
-        return "Completada";
+        return "Pagada"
       case "cancelled":
-        return "Cancelada";
+        return "Cancelada"
       default:
-        return status;
+        return status
     }
-  };
+  }
 
   const renderStatusActions = () => {
-    if (!activeOrder) return null;
+    if (!activeOrder) return null
+
+    if (activeOrder.status === "ready") {
+      return (
+        <button
+          onClick={markAsDelivered}
+          disabled={statusLoading}
+          className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 font-medium disabled:bg-gray-400"
+        >
+          🍽️ Entregar a la mesa
+        </button>
+      )
+    }
 
     if (activeOrder.status === "delivered") {
       return (
@@ -301,20 +336,18 @@ export default function TableOrders({ token }) {
           disabled={statusLoading}
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium disabled:bg-gray-400"
         >
-          💳 Cerrar cuenta
+          💳 Marcar como pagada
         </button>
-      );
+      )
     }
 
-    return null;
-  };
+    return null
+  }
 
   useEffect(() => {
-    if (token) {
-      fetchTables();
-      fetchProducts();
-    }
-  }, [token]);
+    fetchTables()
+    fetchProducts()
+  }, [])
 
   return (
     <div className="p-6 max-w-6xl mx-auto bg-white rounded-2xl shadow border border-gray-200">
@@ -334,11 +367,11 @@ export default function TableOrders({ token }) {
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h2 className="text-xl font-semibold mb-3 text-gray-700">Mesas</h2>
+
             <ul className="space-y-3">
               {tables.map((table) => {
-                const isSelected = selectedTable?.id === table.id;
-                const disableToggle =
-                  isSelected && selectedTableHasActiveOrder;
+                const isSelected = selectedTable?.id === table.id
+                const disableToggle = isSelected && selectedTableHasActiveOrder
 
                 return (
                   <li
@@ -356,6 +389,7 @@ export default function TableOrders({ token }) {
                       <div className="font-semibold text-base">
                         Mesa #{table.number}
                       </div>
+
                       <div className="text-sm text-gray-600">
                         {table.status === "occupied" ? "🟥 Ocupada" : "🟩 Disponible"}
                       </div>
@@ -373,7 +407,7 @@ export default function TableOrders({ token }) {
                       Cambiar estado
                     </button>
                   </li>
-                );
+                )
               })}
             </ul>
           </div>
@@ -397,7 +431,9 @@ export default function TableOrders({ token }) {
 
                   <p className="text-sm text-gray-700 mb-4">
                     Orden activa:{" "}
-                    <span className="font-medium">{activeOrder ? "✅ Sí" : "❌ No"}</span>
+                    <span className="font-medium">
+                      {activeOrder ? "✅ Sí" : "❌ No"}
+                    </span>
                   </p>
 
                   {!activeOrder && (
@@ -496,9 +532,11 @@ export default function TableOrders({ token }) {
                                   >
                                     -
                                   </button>
+
                                   <span className="min-w-6 text-center font-medium">
                                     {product.quantity}
                                   </span>
+
                                   <button
                                     onClick={() => increaseQuantity(product.id)}
                                     className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
@@ -536,6 +574,7 @@ export default function TableOrders({ token }) {
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-semibold">🧾 Orden activa</h3>
+
                         <span
                           className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusStyles(
                             activeOrder.status
@@ -547,8 +586,10 @@ export default function TableOrders({ token }) {
 
                       <div className="mb-3 text-sm text-gray-700 space-y-1">
                         <p>
-                          <span className="font-medium">Order ID:</span> {activeOrder.id}
+                          <span className="font-medium">Order ID:</span>{" "}
+                          {activeOrder.id}
                         </p>
+
                         <p>
                           <span className="font-medium">Fecha:</span>{" "}
                           {formatDate(activeOrder.timestamp)}
@@ -573,6 +614,7 @@ export default function TableOrders({ token }) {
                                   <div className="font-medium">
                                     {item.product?.name || `Producto #${item.product_id}`}
                                   </div>
+
                                   <div className="text-sm text-gray-500">
                                     ${item.product?.price ?? 0} x {item.quantity}
                                   </div>
@@ -592,7 +634,9 @@ export default function TableOrders({ token }) {
                           </div>
                         </>
                       ) : (
-                        <p className="text-gray-500 mb-4">La orden no tiene productos.</p>
+                        <p className="text-gray-500 mb-4">
+                          La orden no tiene productos.
+                        </p>
                       )}
 
                       <div className="flex flex-wrap gap-3">
@@ -602,8 +646,15 @@ export default function TableOrders({ token }) {
                           activeOrder.status !== "cancelled" && (
                             <button
                               onClick={cancelOrder}
-                              disabled={statusLoading}
-                              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:bg-gray-400"
+                              disabled={
+                                statusLoading ||
+                                !["pending", "in_progress"].includes(activeOrder.status)
+                              }
+                              className={`px-4 py-2 text-white rounded font-medium disabled:bg-gray-400 ${
+                                ["pending", "in_progress"].includes(activeOrder.status)
+                                  ? "bg-red-600 hover:bg-red-700"
+                                  : "bg-gray-400 cursor-not-allowed"
+                              }`}
                             >
                               ❌ Cancelar Orden
                             </button>
@@ -628,7 +679,7 @@ export default function TableOrders({ token }) {
                             (sum, item) =>
                               sum + (item.product?.price ?? 0) * item.quantity,
                             0
-                          ) ?? 0;
+                          ) ?? 0
 
                         return (
                           <li
@@ -638,6 +689,7 @@ export default function TableOrders({ token }) {
                             <div className="flex justify-between items-start mb-2">
                               <div>
                                 <p className="font-medium">Orden #{order.id}</p>
+
                                 <p className="text-sm text-gray-500">
                                   {formatDate(order.timestamp)}
                                 </p>
@@ -662,8 +714,9 @@ export default function TableOrders({ token }) {
                               <ul className="text-sm text-gray-700 space-y-1 mb-2">
                                 {order.items.map((item) => (
                                   <li key={item.id}>
-                                    {item.product?.name || `Producto #${item.product_id}`} x{" "}
-                                    {item.quantity}
+                                    {item.product?.name ||
+                                      `Producto #${item.product_id}`}{" "}
+                                    x {item.quantity}
                                   </li>
                                 ))}
                               </ul>
@@ -677,7 +730,7 @@ export default function TableOrders({ token }) {
                               Total: ${total.toFixed(2)}
                             </div>
                           </li>
-                        );
+                        )
                       })}
                     </ul>
                   )}
@@ -688,5 +741,5 @@ export default function TableOrders({ token }) {
         </div>
       )}
     </div>
-  );
+  )
 }

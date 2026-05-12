@@ -27,14 +27,9 @@ class OrderItemCreate(BaseModel):
     quantity: int
 
 
-class OrderBase(BaseModel):
+class OrderCreate(BaseModel):
     table_id: int
-    user_id: int
-    status: OrderStatus = "pending"
     note: Optional[str] = None
-
-
-class OrderCreate(OrderBase):
     items: List[OrderItemCreate]
 
 

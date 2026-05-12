@@ -31,7 +31,7 @@ ORDER_READ_ROLES = ["admin", "waiter", "kitchen", "cashier"]
 ORDER_CREATE_ROLES = ["admin", "waiter", "cashier"]
 ORDER_KITCHEN_ROLES = ["admin", "kitchen"]
 ORDER_DELIVERY_ROLES = ["admin", "waiter", "cashier"]
-ORDER_CLOSE_ROLES = ["admin", "cashier"]
+ORDER_CLOSE_ROLES = ["admin", "cashier", "waiter"]
 ORDER_CANCEL_ROLES = ["admin", "waiter", "cashier"]
 ORDER_DELETE_ROLES = ["admin"]
 ORDER_SUMMARY_ROLES = ["admin", "cashier"]
@@ -204,7 +204,7 @@ def update_order_status(
     if new_status == "completed" and current_user.role not in ORDER_CLOSE_ROLES:
         raise HTTPException(
             status_code=403,
-            detail="Only cashier or admin can complete orders",
+            detail="Only waiter, cashier or admin can complete orders",
         )
 
     if new_status == "cancelled" and current_user.role not in ORDER_CANCEL_ROLES:

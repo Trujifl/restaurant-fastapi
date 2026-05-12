@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import axios from "axios"
-
-const ORDERS_API = "http://localhost:8000/orders/"
+import api from "./api/axios"
 
 export default function KitchenView() {
   const [orders, setOrders] = useState([])
@@ -19,9 +17,9 @@ export default function KitchenView() {
   const getPendingKitchenOrders = (list) => {
     return list.filter(
       (order) =>
-        order.status !== "completed" &&
-        order.status !== "cancelled" &&
-        order.status !== "delivered"
+        order.status === "pending" ||
+        order.status === "in_progress" ||
+        order.status === "ready"
     )
   }
 
@@ -48,7 +46,7 @@ export default function KitchenView() {
       case "in_progress":
         return "En preparación"
       case "ready":
-        return "Lista"
+        return "Entregada al garzón"
       case "delivered":
         return "Entregada"
       default:
@@ -88,9 +86,23 @@ export default function KitchenView() {
     }
   }
 
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
+  }
+
   const fetchOrders = async () => {
     try {
-      const res = await axios.get(ORDERS_API)
+      const res = await api.get("/orders/")
       const data = Array.isArray(res.data) ? res.data : []
       const filtered = getPendingKitchenOrders(data)
 
@@ -141,7 +153,7 @@ export default function KitchenView() {
       setError("")
     } catch (error) {
       console.error(error)
-      setError("No se pudieron cargar las órdenes de cocina.")
+      setError(getErrorMessage(error) || "No se pudieron cargar las órdenes de cocina.")
     } finally {
       setLoading(false)
     }
@@ -153,7 +165,7 @@ export default function KitchenView() {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      await axios.patch(`${ORDERS_API}${orderId}/status`, {
+      await api.patch(`/orders/${orderId}/status`, {
         status: newStatus,
       })
 
@@ -161,7 +173,7 @@ export default function KitchenView() {
       await fetchOrders()
     } catch (error) {
       console.error(error)
-      alert("No se pudo actualizar el estado de la orden.")
+      alert(getErrorMessage(error) || "No se pudo actualizar el estado de la orden.")
     }
   }
 
@@ -183,19 +195,16 @@ export default function KitchenView() {
           onClick={() => updateOrderStatus(order.id, "ready")}
           className="rounded-xl bg-purple-600 px-5 py-3 text-lg font-semibold text-white hover:bg-purple-700"
         >
-          ✅ Marcar lista
+          📤 Entregar al garzón
         </button>
       )
     }
 
     if (order.status === "ready") {
       return (
-        <button
-          onClick={() => updateOrderStatus(order.id, "delivered")}
-          className="rounded-xl bg-green-600 px-5 py-3 text-lg font-semibold text-white hover:bg-green-700"
-        >
-          🍽️ Marcar entregada
-        </button>
+        <span className="rounded-xl border border-purple-300 bg-purple-100 px-5 py-3 text-lg font-semibold text-purple-800">
+          Entregada al garzón
+        </span>
       )
     }
 
@@ -242,7 +251,9 @@ export default function KitchenView() {
         )}
       </div>
 
-      <p className="mb-8 text-2xl text-slate-700">Actualización automática cada 5s</p>
+      <p className="mb-8 text-2xl text-slate-700">
+        Actualización automática cada 5s
+      </p>
 
       {loading && <p className="text-lg text-gray-500">Cargando órdenes...</p>}
 
@@ -250,7 +261,9 @@ export default function KitchenView() {
 
       {!loading && !error && orders.length === 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow">
-          <p className="text-lg text-gray-600">No hay órdenes pendientes en cocina.</p>
+          <p className="text-lg text-gray-600">
+            No hay órdenes pendientes en cocina.
+          </p>
         </div>
       )}
 
@@ -267,7 +280,9 @@ export default function KitchenView() {
               )}`}
             >
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <h3 className="text-3xl font-bold text-slate-800">Orden #{order.id}</h3>
+                <h3 className="text-3xl font-bold text-slate-800">
+                  Orden #{order.id}
+                </h3>
 
                 <div className="flex flex-wrap gap-2">
                   <span
@@ -299,8 +314,10 @@ export default function KitchenView() {
               <ul className="list-disc space-y-2 pl-8 text-2xl text-slate-700">
                 {order.items?.map((item) => (
                   <li key={item.id ?? `${order.id}-${item.product_id}`}>
-                    {item.product?.name || item.product_name || `Producto #${item.product_id}`} x{" "}
-                    {item.quantity}
+                    {item.product?.name ||
+                      item.product_name ||
+                      `Producto #${item.product_id}`}{" "}
+                    x {item.quantity}
                   </li>
                 ))}
               </ul>

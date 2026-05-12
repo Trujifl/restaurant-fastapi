@@ -184,8 +184,8 @@ export default function App() {
         {currentView === "tables" && <AdminTables token={token} />}
         {currentView === "users" && <AdminUsers token={token} />}
         {currentView === "waiter" && <TableOrders token={token} />}
-        {currentView === "kitchen" && <KitchenView token={token} />}
-        {currentView === "cashier" && <CashierView token={token} />}
+        {currentView === "kitchen" && <KitchenView />}
+        {currentView === "cashier" && <CashierView />}
 
         {![
           "waiter",

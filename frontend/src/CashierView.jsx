@@ -1,30 +1,41 @@
 import { useEffect, useMemo, useState } from "react"
-import axios from "axios"
-
-const ORDERS_API = "http://localhost:8000/orders/"
-const DAILY_SUMMARY_API = "http://localhost:8000/orders/summary/daily"
+import api from "./api/axios"
 
 export default function CashierView() {
   const [orders, setOrders] = useState([])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [closingId, setClosingId] = useState(null)
+  const [processingId, setProcessingId] = useState(null)
   const [error, setError] = useState("")
   const [tableFilter, setTableFilter] = useState("all")
 
-  const fetchDeliveredOrders = async () => {
-    try {
-      const res = await axios.get(ORDERS_API)
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
 
-      const deliveredOrders = res.data.filter(
-        (order) => order.status === "delivered"
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
+  }
+
+  const fetchCollectableOrders = async () => {
+    try {
+      const res = await api.get("/orders/")
+
+      const collectableOrders = res.data.filter(
+        (order) => order.status === "ready" || order.status === "delivered"
       )
 
-      setOrders(deliveredOrders)
+      setOrders(collectableOrders)
       setError("")
     } catch (err) {
-      console.error("Error fetching delivered orders:", err)
-      setError("No se pudieron cargar las órdenes entregadas.")
+      console.error("Error fetching cashier orders:", err)
+      setError("No se pudieron cargar las órdenes de caja.")
     } finally {
       setLoading(false)
     }
@@ -32,7 +43,7 @@ export default function CashierView() {
 
   const fetchDailySummary = async () => {
     try {
-      const res = await axios.get(DAILY_SUMMARY_API)
+      const res = await api.get("/orders/summary/daily")
       setSummary(res.data)
     } catch (err) {
       console.error("Error fetching daily summary:", err)
@@ -40,22 +51,39 @@ export default function CashierView() {
   }
 
   const fetchCashierData = async () => {
-    await fetchDeliveredOrders()
+    await fetchCollectableOrders()
     await fetchDailySummary()
+  }
+
+  const markAsDelivered = async (order) => {
+    try {
+      setProcessingId(order.id)
+
+      await api.patch(`/orders/${order.id}/status`, {
+        status: "delivered",
+      })
+
+      await fetchCashierData()
+    } catch (err) {
+      console.error("Error marking order as delivered:", err)
+      alert(getErrorMessage(err) || "No se pudo marcar la orden como entregada.")
+    } finally {
+      setProcessingId(null)
+    }
   }
 
   const closeOrder = async (order) => {
     try {
-      setClosingId(order.id)
+      setProcessingId(order.id)
 
-      await axios.patch(`${ORDERS_API}${order.id}/close`)
+      await api.patch(`/orders/${order.id}/close`)
 
       await fetchCashierData()
     } catch (err) {
       console.error("Error closing order:", err)
-      alert(err.response?.data?.detail || "No se pudo cerrar la orden.")
+      alert(getErrorMessage(err) || "No se pudo cerrar la orden.")
     } finally {
-      setClosingId(null)
+      setProcessingId(null)
     }
   }
 
@@ -92,6 +120,36 @@ export default function CashierView() {
     return new Date(value).toLocaleString()
   }
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "ready":
+        return "Lista"
+      case "delivered":
+        return "Entregada"
+      case "completed":
+        return "Completada"
+      case "cancelled":
+        return "Cancelada"
+      default:
+        return status
+    }
+  }
+
+  const getStatusBadgeClasses = (status) => {
+    switch (status) {
+      case "ready":
+        return "bg-purple-100 text-purple-800 border border-purple-300"
+      case "delivered":
+        return "bg-cyan-100 text-cyan-800 border border-cyan-300"
+      case "completed":
+        return "bg-green-100 text-green-800 border border-green-300"
+      case "cancelled":
+        return "bg-red-100 text-red-800 border border-red-300"
+      default:
+        return "bg-gray-100 text-gray-800 border border-gray-300"
+    }
+  }
+
   useEffect(() => {
     fetchCashierData()
 
@@ -108,7 +166,7 @@ export default function CashierView() {
         <div>
           <h2 className="text-3xl font-bold text-gray-800">💳 Cashier</h2>
           <p className="mt-1 text-gray-500">
-            Manage delivered orders, close payments and review daily sales.
+            Manage ready and delivered orders, close payments and review daily sales.
           </p>
         </div>
 
@@ -152,13 +210,14 @@ export default function CashierView() {
 
       {summary && (
         <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-          📅 Daily summary date: <span className="font-semibold">{summary.date}</span>
+          📅 Daily summary date:{" "}
+          <span className="font-semibold">{summary.date}</span>
         </div>
       )}
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Delivered orders ready to collect</p>
+          <p className="text-sm text-gray-500">Orders ready to collect</p>
           <p className="text-3xl font-bold text-gray-800">
             {filteredOrders.length}
           </p>
@@ -193,7 +252,7 @@ export default function CashierView() {
       </div>
 
       {loading && (
-        <p className="text-center text-gray-500">Loading delivered orders...</p>
+        <p className="text-center text-gray-500">Loading cashier orders...</p>
       )}
 
       {error && (
@@ -204,7 +263,7 @@ export default function CashierView() {
 
       {!loading && filteredOrders.length === 0 && (
         <div className="rounded-xl border bg-gray-50 p-6 text-center text-gray-500">
-          No delivered orders ready for payment.
+          No ready or delivered orders for payment.
         </div>
       )}
 
@@ -232,8 +291,12 @@ export default function CashierView() {
                   </p>
                 </div>
 
-                <span className="w-fit rounded-full bg-cyan-100 px-3 py-1 text-sm font-semibold text-cyan-800">
-                  Delivered
+                <span
+                  className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClasses(
+                    order.status
+                  )}`}
+                >
+                  {getStatusLabel(order.status)}
                 </span>
               </div>
 
@@ -256,8 +319,7 @@ export default function CashierView() {
                       >
                         <div>
                           <p className="font-medium text-gray-800">
-                            {item.product?.name ||
-                              `Product #${item.product_id}`}
+                            {item.product?.name || `Product #${item.product_id}`}
                           </p>
 
                           <p className="text-sm text-gray-500">
@@ -283,17 +345,37 @@ export default function CashierView() {
                   Total: ${total.toFixed(2)}
                 </p>
 
-                <button
-                  onClick={() => closeOrder(order)}
-                  disabled={closingId === order.id}
-                  className={`rounded-lg px-5 py-3 font-semibold text-white ${
-                    closingId === order.id
-                      ? "cursor-not-allowed bg-gray-400"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  {closingId === order.id ? "Closing..." : "💳 Close Order"}
-                </button>
+                <div className="flex flex-wrap gap-3">
+                  {order.status === "ready" && (
+                    <button
+                      onClick={() => markAsDelivered(order)}
+                      disabled={processingId === order.id}
+                      className={`rounded-lg px-5 py-3 font-semibold text-white ${
+                        processingId === order.id
+                          ? "cursor-not-allowed bg-gray-400"
+                          : "bg-cyan-600 hover:bg-cyan-700"
+                      }`}
+                    >
+                      {processingId === order.id
+                        ? "Processing..."
+                        : "🍽️ Mark Delivered"}
+                    </button>
+                  )}
+
+                  {order.status === "delivered" && (
+                    <button
+                      onClick={() => closeOrder(order)}
+                      disabled={processingId === order.id}
+                      className={`rounded-lg px-5 py-3 font-semibold text-white ${
+                        processingId === order.id
+                          ? "cursor-not-allowed bg-gray-400"
+                          : "bg-green-600 hover:bg-green-700"
+                      }`}
+                    >
+                      {processingId === order.id ? "Closing..." : "💳 Close Order"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )
