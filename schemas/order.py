@@ -13,6 +13,12 @@ OrderStatus = Literal[
     "unpaid",
 ]
 
+PaymentMethod = Literal[
+    "cash",
+    "card",
+    "transfer",
+]
+
 
 class ProductSummary(BaseModel):
     id: int
@@ -38,6 +44,10 @@ class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
 
+class OrderClose(BaseModel):
+    payment_method: PaymentMethod
+
+
 class OrderItem(BaseModel):
     id: int
     product_id: int
@@ -54,6 +64,9 @@ class Order(BaseModel):
     status: OrderStatus
     note: Optional[str] = None
     timestamp: datetime
+    payment_method: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    closed_by_user_id: Optional[int] = None
     items: List[OrderItem] = []
 
     model_config = ConfigDict(from_attributes=True)

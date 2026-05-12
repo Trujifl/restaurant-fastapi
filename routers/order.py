@@ -120,8 +120,25 @@ def get_daily_summary(
     total_sales = 0
     unpaid_total = 0
 
+    payment_totals = {
+        "cash": 0,
+        "card": 0,
+        "transfer": 0,
+    }
+
+    payment_counts = {
+        "cash": 0,
+        "card": 0,
+        "transfer": 0,
+    }
+
     for order in completed_orders:
-        total_sales += get_order_total(order)
+        order_total = get_order_total(order)
+        total_sales += order_total
+
+        if order.payment_method in payment_totals:
+            payment_totals[order.payment_method] += order_total
+            payment_counts[order.payment_method] += 1
 
     for order in unpaid_orders:
         unpaid_total += get_order_total(order)
@@ -134,6 +151,8 @@ def get_daily_summary(
         "active_orders": len(active_orders),
         "total_sales": total_sales,
         "unpaid_total": unpaid_total,
+        "payment_totals": payment_totals,
+        "payment_counts": payment_counts,
     }
 
 
@@ -262,6 +281,7 @@ def update_order_status(
 @router.patch("/{order_id}/close", response_model=order_schema.Order)
 def close_order(
     order_id: int,
+    close_data: order_schema.OrderClose,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(ORDER_CLOSE_ROLES)),
 ):
@@ -283,6 +303,9 @@ def close_order(
     ).first()
 
     db_order.status = "completed"
+    db_order.payment_method = close_data.payment_method
+    db_order.paid_at = datetime.utcnow()
+    db_order.closed_by_user_id = current_user.id
 
     if table:
         table.status = "available"

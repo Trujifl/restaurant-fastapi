@@ -14,8 +14,13 @@ class Order(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     note = Column(String, nullable=True)
 
+    payment_method = Column(String, nullable=True)
+    paid_at = Column(DateTime, nullable=True)
+    closed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     table = relationship("Table")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+    closed_by_user = relationship("User", foreign_keys=[closed_by_user_id])
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
 

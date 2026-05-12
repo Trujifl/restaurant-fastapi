@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "./api/axios"
 
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Efectivo" },
+  { value: "card", label: "Tarjeta" },
+  { value: "transfer", label: "Transferencia" },
+]
+
 export default function TableOrders() {
   const [tables, setTables] = useState([])
   const [selectedTable, setSelectedTable] = useState(null)
@@ -26,6 +32,11 @@ export default function TableOrders() {
     }
 
     return "Ocurrió un error inesperado."
+  }
+
+  const getPaymentLabel = (method) => {
+    const found = PAYMENT_METHODS.find((item) => item.value === method)
+    return found ? found.label : method || "-"
   }
 
   const fetchTables = async () => {
@@ -263,13 +274,15 @@ export default function TableOrders() {
     }
   }
 
-  const closeOrder = async () => {
+  const closeOrder = async (paymentMethod) => {
     if (!activeOrder) return
 
     try {
       setStatusLoading(true)
 
-      await api.patch(`/orders/${activeOrder.id}/close`)
+      await api.patch(`/orders/${activeOrder.id}/close`, {
+        payment_method: paymentMethod,
+      })
 
       setActiveOrder(null)
       setOrderProducts([])
@@ -374,23 +387,32 @@ export default function TableOrders() {
 
     if (activeOrder.status === "delivered") {
       return (
-        <>
-          <button
-            onClick={closeOrder}
-            disabled={statusLoading}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium disabled:bg-gray-400"
-          >
-            💳 Marcar como pagada
-          </button>
+        <div className="w-full space-y-3">
+          <p className="text-sm font-semibold text-gray-700">
+            Selecciona método de pago:
+          </p>
 
-          <button
-            onClick={markAsUnpaid}
-            disabled={statusLoading}
-            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-medium disabled:bg-gray-400"
-          >
-            ⚠️ Marcar no pagada
-          </button>
-        </>
+          <div className="flex flex-wrap gap-3">
+            {PAYMENT_METHODS.map((method) => (
+              <button
+                key={method.value}
+                onClick={() => closeOrder(method.value)}
+                disabled={statusLoading}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium disabled:bg-gray-400"
+              >
+                💳 Pagar con {method.label}
+              </button>
+            ))}
+
+            <button
+              onClick={markAsUnpaid}
+              disabled={statusLoading}
+              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-medium disabled:bg-gray-400"
+            >
+              ⚠️ Marcar no pagada
+            </button>
+          </div>
+        </div>
       )
     }
 
@@ -757,6 +779,12 @@ export default function TableOrders() {
                                 {getStatusLabel(order.status)}
                               </span>
                             </div>
+
+                            {order.payment_method && (
+                              <div className="mb-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">
+                                Método de pago: {getPaymentLabel(order.payment_method)}
+                              </div>
+                            )}
 
                             {order.note && (
                               <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">

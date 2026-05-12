@@ -83,6 +83,19 @@ export default function AdminPanel() {
       .slice(0, 5)
   }, [orders])
 
+  const getPaymentLabel = (method) => {
+    switch (method) {
+      case "cash":
+        return "Efectivo"
+      case "card":
+        return "Tarjeta"
+      case "transfer":
+        return "Transferencia"
+      default:
+        return "-"
+    }
+  }
+
   const getStatusStyles = (status) => {
     switch (status) {
       case "pending":
@@ -197,6 +210,50 @@ export default function AdminPanel() {
             </div>
           </div>
 
+          {summary && (
+            <div className="mb-6 grid gap-4 md:grid-cols-4">
+              <div className="rounded-xl border bg-green-50 p-4">
+                <p className="text-sm text-gray-600">Efectivo</p>
+                <p className="text-2xl font-bold text-green-700">
+                  ${Number(summary.payment_totals?.cash || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.cash || 0} órdenes
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-blue-50 p-4">
+                <p className="text-sm text-gray-600">Tarjeta</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  ${Number(summary.payment_totals?.card || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.card || 0} órdenes
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-purple-50 p-4">
+                <p className="text-sm text-gray-600">Transferencia</p>
+                <p className="text-2xl font-bold text-purple-700">
+                  ${Number(summary.payment_totals?.transfer || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.transfer || 0} órdenes
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-orange-50 p-4">
+                <p className="text-sm text-gray-600">No pagado</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  ${Number(summary.unpaid_total || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.unpaid_orders || 0} incidencias
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mb-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <p className="text-sm text-gray-500">Total tables</p>
@@ -257,15 +314,6 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {summary && (
-            <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-800">
-              ⚠️ Unpaid total today:{" "}
-              <span className="font-semibold">
-                ${Number(summary.unpaid_total || 0).toFixed(2)}
-              </span>
-            </div>
-          )}
-
           <div className="rounded-xl border bg-white p-4 shadow-sm">
             <h3 className="mb-4 text-xl font-bold text-gray-800">
               🧾 Recent orders
@@ -286,6 +334,9 @@ export default function AdminPanel() {
                       </th>
                       <th className="p-3 text-sm font-semibold text-gray-600">
                         Status
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Payment
                       </th>
                       <th className="p-3 text-sm font-semibold text-gray-600">
                         Created at
@@ -312,6 +363,10 @@ export default function AdminPanel() {
                           >
                             {getStatusLabel(order.status)}
                           </span>
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {getPaymentLabel(order.payment_method)}
                         </td>
 
                         <td className="p-3 text-gray-600">

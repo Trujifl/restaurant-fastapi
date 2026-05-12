@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "./api/axios"
 
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Efectivo" },
+  { value: "card", label: "Tarjeta" },
+  { value: "transfer", label: "Transferencia" },
+]
+
 export default function CashierView() {
   const [orders, setOrders] = useState([])
   const [summary, setSummary] = useState(null)
@@ -21,6 +27,11 @@ export default function CashierView() {
     }
 
     return "Ocurrió un error inesperado."
+  }
+
+  const getPaymentLabel = (method) => {
+    const found = PAYMENT_METHODS.find((item) => item.value === method)
+    return found ? found.label : method || "-"
   }
 
   const fetchCollectableOrders = async () => {
@@ -95,11 +106,13 @@ export default function CashierView() {
     }
   }
 
-  const closeOrder = async (order) => {
+  const closeOrder = async (order, paymentMethod) => {
     try {
       setProcessingId(order.id)
 
-      await api.patch(`/orders/${order.id}/close`)
+      await api.patch(`/orders/${order.id}/close`, {
+        payment_method: paymentMethod,
+      })
 
       await fetchCashierData()
     } catch (err) {
@@ -191,78 +204,30 @@ export default function CashierView() {
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800">💳 Cashier</h2>
+          <h2 className="text-3xl font-bold text-gray-800">💳 Caja</h2>
           <p className="mt-1 text-gray-500">
-            Manage ready and delivered orders, close payments and review daily sales.
+            Órdenes listas para cobrar, cierre de pagos y resumen diario.
           </p>
         </div>
 
         <button
           onClick={fetchCashierData}
-          className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
         >
-          Refresh
+          Actualizar
         </button>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-5">
-        <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Completed orders</p>
-          <p className="text-3xl font-bold text-gray-800">
-            {summary ? summary.completed_orders : 0}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Cancelled orders</p>
-          <p className="text-3xl font-bold text-red-600">
-            {summary ? summary.cancelled_orders : 0}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Unpaid orders</p>
-          <p className="text-3xl font-bold text-orange-600">
-            {summary ? summary.unpaid_orders : 0}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Active orders</p>
-          <p className="text-3xl font-bold text-blue-600">
-            {summary ? summary.active_orders : 0}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Daily sales</p>
-          <p className="text-3xl font-bold text-green-700">
-            ${summary ? Number(summary.total_sales).toFixed(2) : "0.00"}
-          </p>
-        </div>
-      </div>
-
-      {summary && (
-        <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-800">
-          📅 Daily summary date:{" "}
-          <span className="font-semibold">{summary.date}</span>
-          {" "}— Unpaid total:{" "}
-          <span className="font-semibold">
-            ${Number(summary.unpaid_total || 0).toFixed(2)}
-          </span>
-        </div>
-      )}
-
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Orders ready to collect</p>
+          <p className="text-sm text-gray-500">Órdenes listas para cobrar</p>
           <p className="text-3xl font-bold text-gray-800">
             {filteredOrders.length}
           </p>
         </div>
 
         <div className="rounded-xl border bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Pending collection total</p>
+          <p className="text-sm text-gray-500">Total pendiente de cobro</p>
           <p className="text-3xl font-bold text-green-700">
             ${totalToCollect.toFixed(2)}
           </p>
@@ -270,7 +235,7 @@ export default function CashierView() {
 
         <div className="rounded-xl border bg-gray-50 p-4">
           <label className="mb-2 block text-sm font-medium text-gray-600">
-            Filter by table
+            Filtrar por mesa
           </label>
 
           <select
@@ -278,11 +243,11 @@ export default function CashierView() {
             onChange={(e) => setTableFilter(e.target.value)}
             className="w-full rounded-lg border p-2"
           >
-            <option value="all">All tables</option>
+            <option value="all">Todas las mesas</option>
 
             {availableTables.map((tableId) => (
               <option key={tableId} value={tableId}>
-                Table #{tableId}
+                Mesa #{tableId}
               </option>
             ))}
           </select>
@@ -290,7 +255,7 @@ export default function CashierView() {
       </div>
 
       {loading && (
-        <p className="text-center text-gray-500">Loading cashier orders...</p>
+        <p className="text-center text-gray-500">Cargando órdenes de caja...</p>
       )}
 
       {error && (
@@ -300,12 +265,12 @@ export default function CashierView() {
       )}
 
       {!loading && filteredOrders.length === 0 && (
-        <div className="rounded-xl border bg-gray-50 p-6 text-center text-gray-500">
-          No ready or delivered orders for payment.
+        <div className="mb-8 rounded-xl border bg-gray-50 p-6 text-center text-gray-500">
+          No hay órdenes listas para cobrar.
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="mb-8 space-y-4">
         {filteredOrders.map((order) => {
           const total = getOrderTotal(order)
 
@@ -317,15 +282,15 @@ export default function CashierView() {
               <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h3 className="text-xl font-bold text-gray-800">
-                    Order #{order.id}
+                    Orden #{order.id}
                   </h3>
 
                   <p className="text-sm text-gray-500">
-                    Table #{order.table_id}
+                    Mesa #{order.table_id}
                   </p>
 
                   <p className="text-sm text-gray-500">
-                    Created at: {formatDate(order.timestamp)}
+                    Creada: {formatDate(order.timestamp)}
                   </p>
                 </div>
 
@@ -357,7 +322,7 @@ export default function CashierView() {
                       >
                         <div>
                           <p className="font-medium text-gray-800">
-                            {item.product?.name || `Product #${item.product_id}`}
+                            {item.product?.name || `Producto #${item.product_id}`}
                           </p>
 
                           <p className="text-sm text-gray-500">
@@ -374,7 +339,7 @@ export default function CashierView() {
                 </ul>
               ) : (
                 <p className="mb-4 text-sm text-gray-500">
-                  This order has no products.
+                  Esta orden no tiene productos.
                 </p>
               )}
 
@@ -395,24 +360,28 @@ export default function CashierView() {
                       }`}
                     >
                       {processingId === order.id
-                        ? "Processing..."
-                        : "🍽️ Mark Delivered"}
+                        ? "Procesando..."
+                        : "🍽️ Marcar entregada"}
                     </button>
                   )}
 
-                  {order.status === "delivered" && (
-                    <button
-                      onClick={() => closeOrder(order)}
-                      disabled={processingId === order.id}
-                      className={`rounded-lg px-5 py-3 font-semibold text-white ${
-                        processingId === order.id
-                          ? "cursor-not-allowed bg-gray-400"
-                          : "bg-green-600 hover:bg-green-700"
-                      }`}
-                    >
-                      {processingId === order.id ? "Closing..." : "💳 Close Order"}
-                    </button>
-                  )}
+                  {order.status === "delivered" &&
+                    PAYMENT_METHODS.map((method) => (
+                      <button
+                        key={method.value}
+                        onClick={() => closeOrder(order, method.value)}
+                        disabled={processingId === order.id}
+                        className={`rounded-lg px-5 py-3 font-semibold text-white ${
+                          processingId === order.id
+                            ? "cursor-not-allowed bg-gray-400"
+                            : "bg-green-600 hover:bg-green-700"
+                        }`}
+                      >
+                        {processingId === order.id
+                          ? "Cerrando..."
+                          : `💳 ${method.label}`}
+                      </button>
+                    ))}
 
                   {(order.status === "ready" || order.status === "delivered") && (
                     <button
@@ -425,8 +394,8 @@ export default function CashierView() {
                       }`}
                     >
                       {processingId === order.id
-                        ? "Processing..."
-                        : "⚠️ Mark Unpaid"}
+                        ? "Procesando..."
+                        : "⚠️ Marcar no pagada"}
                     </button>
                   )}
                 </div>
@@ -434,6 +403,94 @@ export default function CashierView() {
             </div>
           )
         })}
+      </div>
+
+      <div className="border-t pt-6">
+        <h3 className="mb-4 text-2xl font-bold text-gray-800">
+          📊 Resumen diario
+        </h3>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-5">
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Órdenes pagadas</p>
+            <p className="text-3xl font-bold text-gray-800">
+              {summary ? summary.completed_orders : 0}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Órdenes canceladas</p>
+            <p className="text-3xl font-bold text-red-600">
+              {summary ? summary.cancelled_orders : 0}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Órdenes no pagadas</p>
+            <p className="text-3xl font-bold text-orange-600">
+              {summary ? summary.unpaid_orders : 0}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Órdenes activas</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {summary ? summary.active_orders : 0}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Ventas del día</p>
+            <p className="text-3xl font-bold text-green-700">
+              ${summary ? Number(summary.total_sales).toFixed(2) : "0.00"}
+            </p>
+          </div>
+        </div>
+
+        {summary && (
+          <>
+            <div className="mb-4 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-800">
+              📅 Fecha:{" "}
+              <span className="font-semibold">{summary.date}</span>
+              {" "}— Total no pagado:{" "}
+              <span className="font-semibold">
+                ${Number(summary.unpaid_total || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border bg-green-50 p-4">
+                <p className="text-sm text-gray-600">Efectivo</p>
+                <p className="text-2xl font-bold text-green-700">
+                  ${Number(summary.payment_totals?.cash || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.cash || 0} órdenes
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-blue-50 p-4">
+                <p className="text-sm text-gray-600">Tarjeta</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  ${Number(summary.payment_totals?.card || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.card || 0} órdenes
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-purple-50 p-4">
+                <p className="text-sm text-gray-600">Transferencia</p>
+                <p className="text-2xl font-bold text-purple-700">
+                  ${Number(summary.payment_totals?.transfer || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {summary.payment_counts?.transfer || 0} órdenes
+                </p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
