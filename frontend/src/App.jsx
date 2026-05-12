@@ -7,6 +7,7 @@ import AdminPanel from "./AdminPanel"
 import AdminProducts from "./AdminProducts"
 import AdminTables from "./AdminTables"
 import AdminUsers from "./AdminUsers"
+import AdminOrders from "./AdminOrders"
 
 import Login from "./components/Login"
 import { getCurrentUser, getToken, removeToken } from "./auth/authService"
@@ -145,6 +146,17 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setAdminView("orders")}
+              className={`px-6 py-4 text-2xl font-semibold ${
+                adminView === "orders"
+                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                  : "hover:bg-gray-50"
+              }`}
+            >
+              📜 Orders
+            </button>
+
+            <button
               onClick={() => setAdminView("waiter")}
               className={`px-6 py-4 text-2xl font-semibold ${
                 adminView === "waiter"
@@ -183,16 +195,12 @@ export default function App() {
         {currentView === "products" && <AdminProducts />}
         {currentView === "tables" && <AdminTables />}
         {currentView === "users" && <AdminUsers />}
+        {currentView === "orders" && <AdminOrders />}
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
 
-        {![
-          "waiter",
-          "kitchen",
-          "cashier",
-          "admin",
-        ].includes(normalizedRole) && (
+        {!["waiter", "kitchen", "cashier", "admin"].includes(normalizedRole) && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
             Invalid role: {user.role}
           </div>
