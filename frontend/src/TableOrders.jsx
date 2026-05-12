@@ -42,7 +42,7 @@ export default function TableOrders() {
   const fetchTables = async () => {
     try {
       setLoading(true)
-      const res = await api.get("/tables/")
+      const res = await api.get("/tables/?active_only=true")
       setTables(res.data)
       setError(null)
       return res.data

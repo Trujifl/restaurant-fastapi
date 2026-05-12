@@ -1,20 +1,31 @@
-from pydantic import BaseModel
-from typing import Optional
-from typing import Literal
+from pydantic import BaseModel, ConfigDict
+from typing import Literal, Optional
+
+
+TableStatus = Literal["available", "occupied", "reserved"]
 
 
 class TableBase(BaseModel):
     number: int
-    status: Optional[str] = "available"
+    status: Optional[TableStatus] = "available"
+
 
 class TableCreate(TableBase):
-    pass
+    is_active: bool = True
+
+
+class TableUpdate(BaseModel):
+    number: Optional[int] = None
+    status: Optional[TableStatus] = None
+    is_active: Optional[bool] = None
+
 
 class Table(TableBase):
     id: int
+    is_active: bool
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class TableStatusUpdate(BaseModel):
-    status: Literal["available", "occupied", "reserved"]
+    status: TableStatus
