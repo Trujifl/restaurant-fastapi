@@ -12,12 +12,14 @@ export default function AdminProducts() {
     name: "",
     price: "",
     category: "",
+    is_active: true,
   })
 
   const [editForm, setEditForm] = useState({
     name: "",
     price: "",
     category: "",
+    is_active: true,
   })
 
   const getErrorMessage = (error) => {
@@ -55,6 +57,7 @@ export default function AdminProducts() {
       name: "",
       price: "",
       category: "",
+      is_active: true,
     })
   }
 
@@ -78,6 +81,7 @@ export default function AdminProducts() {
         name: form.name.trim(),
         price: Number(form.price),
         category: form.category.trim() || null,
+        is_active: form.is_active,
       })
 
       resetForm()
@@ -96,6 +100,7 @@ export default function AdminProducts() {
       name: product.name || "",
       price: String(product.price ?? ""),
       category: product.category || "",
+      is_active: Boolean(product.is_active),
     })
   }
 
@@ -105,6 +110,7 @@ export default function AdminProducts() {
       name: "",
       price: "",
       category: "",
+      is_active: true,
     })
   }
 
@@ -126,6 +132,7 @@ export default function AdminProducts() {
         name: editForm.name.trim(),
         price: Number(editForm.price),
         category: editForm.category.trim() || null,
+        is_active: editForm.is_active,
       })
 
       cancelEditing()
@@ -138,9 +145,24 @@ export default function AdminProducts() {
     }
   }
 
+  const toggleProductStatus = async (product) => {
+    try {
+      setSaving(true)
+
+      await api.patch(`/products/${product.id}/status?is_active=${!product.is_active}`)
+
+      await fetchProducts()
+    } catch (err) {
+      console.error("Error changing product status:", err)
+      alert(getErrorMessage(err) || "No se pudo cambiar el estado del producto.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const deleteProduct = async (product) => {
     const confirmDelete = window.confirm(
-      `¿Seguro que quieres eliminar "${product.name}"?`
+      `¿Seguro que quieres desactivar "${product.name}"?\n\nNo se eliminará del historial, solo dejará de aparecer para nuevas órdenes.`
     )
 
     if (!confirmDelete) return
@@ -152,16 +174,20 @@ export default function AdminProducts() {
 
       await fetchProducts()
     } catch (err) {
-      console.error("Error deleting product:", err)
-      alert(getErrorMessage(err) || "No se pudo eliminar el producto.")
+      console.error("Error disabling product:", err)
+      alert(getErrorMessage(err) || "No se pudo desactivar el producto.")
     } finally {
       setSaving(false)
     }
   }
 
-  useEffect(() => {
-    fetchProducts()
-  }, [])
+  const getStatusBadge = (isActive) => {
+    if (isActive) {
+      return "bg-green-100 text-green-700"
+    }
+
+    return "bg-red-100 text-red-700"
+  }
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -171,13 +197,14 @@ export default function AdminProducts() {
             📦 Products Manager
           </h2>
           <p className="mt-1 text-gray-500">
-            Create, edit and manage restaurant products.
+            Create, edit, activate and deactivate restaurant products.
           </p>
         </div>
 
         <button
           onClick={fetchProducts}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          disabled={saving}
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh
         </button>
@@ -191,7 +218,7 @@ export default function AdminProducts() {
           ➕ Create product
         </h3>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <input
             type="text"
             placeholder="Product name"
@@ -217,6 +244,17 @@ export default function AdminProducts() {
             onChange={(e) => setForm({ ...form, category: e.target.value })}
             className="rounded-lg border p-3"
           />
+
+          <select
+            value={String(form.is_active)}
+            onChange={(e) =>
+              setForm({ ...form, is_active: e.target.value === "true" })
+            }
+            className="rounded-lg border p-3"
+          >
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
 
           <button
             type="submit"
@@ -262,6 +300,9 @@ export default function AdminProducts() {
                 </th>
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Category
+                </th>
+                <th className="p-3 text-sm font-semibold text-gray-600">
+                  Status
                 </th>
                 <th className="p-3 text-sm font-semibold text-gray-600">
                   Actions
@@ -343,6 +384,32 @@ export default function AdminProducts() {
 
                     <td className="p-3">
                       {isEditing ? (
+                        <select
+                          value={String(editForm.is_active)}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              is_active: e.target.value === "true",
+                            })
+                          }
+                          className="w-full rounded-lg border p-2"
+                        >
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadge(
+                            product.is_active
+                          )}`}
+                        >
+                          {product.is_active ? "Active" : "Inactive"}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="p-3">
+                      {isEditing ? (
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -374,10 +441,28 @@ export default function AdminProducts() {
 
                           <button
                             type="button"
-                            onClick={() => deleteProduct(product)}
-                            className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                            onClick={() => toggleProductStatus(product)}
+                            disabled={saving}
+                            className={`rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:bg-gray-400 ${
+                              product.is_active
+                                ? "bg-red-600 hover:bg-red-700"
+                                : "bg-green-600 hover:bg-green-700"
+                            }`}
                           >
-                            Delete
+                            {product.is_active ? "Deactivate" : "Activate"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteProduct(product)}
+                            disabled={saving || !product.is_active}
+                            className={`rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:bg-gray-400 ${
+                              product.is_active
+                                ? "bg-red-800 hover:bg-red-900"
+                                : "bg-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            Disable
                           </button>
                         </div>
                       )}

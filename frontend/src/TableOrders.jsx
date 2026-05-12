@@ -58,7 +58,7 @@ export default function TableOrders() {
   const fetchProducts = async () => {
     try {
       setProductsLoading(true)
-      const res = await api.get("/products/")
+      const res = await api.get("/products/?active_only=true")
       setProducts(res.data)
     } catch (err) {
       console.error("Error fetching products:", err)

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Boolean, Column, Float, Integer, String
 from database import Base
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -8,3 +9,4 @@ class Product(Base):
     name = Column(String, nullable=False)
     price = Column(Float, nullable=False)
     category = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
