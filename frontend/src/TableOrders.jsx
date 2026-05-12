@@ -213,6 +213,35 @@ export default function TableOrders() {
     }
   }
 
+  const markAsUnpaid = async () => {
+    if (!activeOrder) return
+
+    const confirmUnpaid = window.confirm(
+      "¿Seguro que quieres marcar esta orden como no pagada?\n\nLa mesa quedará disponible y la orden quedará registrada como incidencia."
+    )
+
+    if (!confirmUnpaid) return
+
+    try {
+      setStatusLoading(true)
+
+      await api.patch(`/orders/${activeOrder.id}/status`, {
+        status: "unpaid",
+      })
+
+      setActiveOrder(null)
+      setOrderProducts([])
+      setOrderNote("")
+
+      await refreshSelectedTable(selectedTable.id)
+    } catch (err) {
+      console.error("Error marking order as unpaid:", err)
+      alert(getErrorMessage(err) || "No se pudo marcar la orden como no pagada.")
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
   const cancelOrder = async () => {
     if (!activeOrder) return
 
@@ -290,6 +319,8 @@ export default function TableOrders() {
         return "bg-green-100 text-green-800"
       case "cancelled":
         return "bg-red-100 text-red-800"
+      case "unpaid":
+        return "bg-orange-100 text-orange-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -309,6 +340,8 @@ export default function TableOrders() {
         return "Pagada"
       case "cancelled":
         return "Cancelada"
+      case "unpaid":
+        return "No pagada"
       default:
         return status
     }
@@ -319,25 +352,45 @@ export default function TableOrders() {
 
     if (activeOrder.status === "ready") {
       return (
-        <button
-          onClick={markAsDelivered}
-          disabled={statusLoading}
-          className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 font-medium disabled:bg-gray-400"
-        >
-          🍽️ Entregar a la mesa
-        </button>
+        <>
+          <button
+            onClick={markAsDelivered}
+            disabled={statusLoading}
+            className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 font-medium disabled:bg-gray-400"
+          >
+            🍽️ Entregar a la mesa
+          </button>
+
+          <button
+            onClick={markAsUnpaid}
+            disabled={statusLoading}
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-medium disabled:bg-gray-400"
+          >
+            ⚠️ Marcar no pagada
+          </button>
+        </>
       )
     }
 
     if (activeOrder.status === "delivered") {
       return (
-        <button
-          onClick={closeOrder}
-          disabled={statusLoading}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium disabled:bg-gray-400"
-        >
-          💳 Marcar como pagada
-        </button>
+        <>
+          <button
+            onClick={closeOrder}
+            disabled={statusLoading}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium disabled:bg-gray-400"
+          >
+            💳 Marcar como pagada
+          </button>
+
+          <button
+            onClick={markAsUnpaid}
+            disabled={statusLoading}
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-medium disabled:bg-gray-400"
+          >
+            ⚠️ Marcar no pagada
+          </button>
+        </>
       )
     }
 
@@ -643,7 +696,8 @@ export default function TableOrders() {
                         {renderStatusActions()}
 
                         {activeOrder.status !== "completed" &&
-                          activeOrder.status !== "cancelled" && (
+                          activeOrder.status !== "cancelled" &&
+                          activeOrder.status !== "unpaid" && (
                             <button
                               onClick={cancelOrder}
                               disabled={

@@ -9,7 +9,8 @@ OrderStatus = Literal[
     "ready",
     "delivered",
     "completed",
-    "cancelled"
+    "cancelled",
+    "unpaid",
 ]
 
 

@@ -20,10 +20,11 @@ ACTIVE_ORDER_STATUSES = ["pending", "in_progress", "ready", "delivered"]
 VALID_TRANSITIONS = {
     "pending": ["in_progress", "cancelled"],
     "in_progress": ["ready", "cancelled"],
-    "ready": ["delivered"],
-    "delivered": ["completed"],
+    "ready": ["delivered", "unpaid"],
+    "delivered": ["completed", "unpaid"],
     "completed": [],
     "cancelled": [],
+    "unpaid": [],
 }
 
 
@@ -33,6 +34,7 @@ ORDER_KITCHEN_ROLES = ["admin", "kitchen"]
 ORDER_DELIVERY_ROLES = ["admin", "waiter", "cashier"]
 ORDER_CLOSE_ROLES = ["admin", "cashier", "waiter"]
 ORDER_CANCEL_ROLES = ["admin", "waiter", "cashier"]
+ORDER_UNPAID_ROLES = ["admin", "waiter", "cashier"]
 ORDER_DELETE_ROLES = ["admin"]
 ORDER_SUMMARY_ROLES = ["admin", "cashier"]
 
@@ -43,6 +45,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_order_total(order):
+    total = 0
+
+    for item in order.items:
+        if item.product:
+            total += item.product.price * item.quantity
+
+    return total
 
 
 @router.get("/by_table/{table_id}", response_model=order_schema.Order)
@@ -95,23 +107,33 @@ def get_daily_summary(
         order_model.Order.timestamp <= end_of_day,
     ).all()
 
+    unpaid_orders = db.query(order_model.Order).filter(
+        order_model.Order.status == "unpaid",
+        order_model.Order.timestamp >= start_of_day,
+        order_model.Order.timestamp <= end_of_day,
+    ).all()
+
     active_orders = db.query(order_model.Order).filter(
         order_model.Order.status.in_(ACTIVE_ORDER_STATUSES)
     ).all()
 
     total_sales = 0
+    unpaid_total = 0
 
     for order in completed_orders:
-        for item in order.items:
-            if item.product:
-                total_sales += item.product.price * item.quantity
+        total_sales += get_order_total(order)
+
+    for order in unpaid_orders:
+        unpaid_total += get_order_total(order)
 
     return {
         "date": str(today),
         "completed_orders": len(completed_orders),
         "cancelled_orders": len(cancelled_orders),
+        "unpaid_orders": len(unpaid_orders),
         "active_orders": len(active_orders),
         "total_sales": total_sales,
+        "unpaid_total": unpaid_total,
     }
 
 
@@ -213,13 +235,19 @@ def update_order_status(
             detail="Only waiter, cashier or admin can cancel orders",
         )
 
+    if new_status == "unpaid" and current_user.role not in ORDER_UNPAID_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only waiter, cashier or admin can mark orders as unpaid",
+        )
+
     table = db.query(table_model.Table).filter(
         table_model.Table.id == db_order.table_id
     ).first()
 
     db_order.status = new_status
 
-    if new_status in ["completed", "cancelled"] and table:
+    if new_status in ["completed", "cancelled", "unpaid"] and table:
         table.status = "available"
 
     if new_status in ACTIVE_ORDER_STATUSES and table:

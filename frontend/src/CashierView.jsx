@@ -72,6 +72,29 @@ export default function CashierView() {
     }
   }
 
+  const markAsUnpaid = async (order) => {
+    const confirmUnpaid = window.confirm(
+      "¿Seguro que quieres marcar esta orden como no pagada?\n\nLa mesa quedará disponible y la orden quedará registrada como incidencia."
+    )
+
+    if (!confirmUnpaid) return
+
+    try {
+      setProcessingId(order.id)
+
+      await api.patch(`/orders/${order.id}/status`, {
+        status: "unpaid",
+      })
+
+      await fetchCashierData()
+    } catch (err) {
+      console.error("Error marking order as unpaid:", err)
+      alert(getErrorMessage(err) || "No se pudo marcar la orden como no pagada.")
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
   const closeOrder = async (order) => {
     try {
       setProcessingId(order.id)
@@ -123,13 +146,15 @@ export default function CashierView() {
   const getStatusLabel = (status) => {
     switch (status) {
       case "ready":
-        return "Lista"
+        return "Entregada al garzón"
       case "delivered":
-        return "Entregada"
+        return "Entregada a la mesa"
       case "completed":
-        return "Completada"
+        return "Pagada"
       case "cancelled":
         return "Cancelada"
+      case "unpaid":
+        return "No pagada"
       default:
         return status
     }
@@ -145,6 +170,8 @@ export default function CashierView() {
         return "bg-green-100 text-green-800 border border-green-300"
       case "cancelled":
         return "bg-red-100 text-red-800 border border-red-300"
+      case "unpaid":
+        return "bg-orange-100 text-orange-800 border border-orange-300"
       default:
         return "bg-gray-100 text-gray-800 border border-gray-300"
     }
@@ -178,7 +205,7 @@ export default function CashierView() {
         </button>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid gap-4 md:grid-cols-5">
         <div className="rounded-xl border bg-gray-50 p-4">
           <p className="text-sm text-gray-500">Completed orders</p>
           <p className="text-3xl font-bold text-gray-800">
@@ -190,6 +217,13 @@ export default function CashierView() {
           <p className="text-sm text-gray-500">Cancelled orders</p>
           <p className="text-3xl font-bold text-red-600">
             {summary ? summary.cancelled_orders : 0}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-gray-50 p-4">
+          <p className="text-sm text-gray-500">Unpaid orders</p>
+          <p className="text-3xl font-bold text-orange-600">
+            {summary ? summary.unpaid_orders : 0}
           </p>
         </div>
 
@@ -209,9 +243,13 @@ export default function CashierView() {
       </div>
 
       {summary && (
-        <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+        <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-800">
           📅 Daily summary date:{" "}
           <span className="font-semibold">{summary.date}</span>
+          {" "}— Unpaid total:{" "}
+          <span className="font-semibold">
+            ${Number(summary.unpaid_total || 0).toFixed(2)}
+          </span>
         </div>
       )}
 
@@ -373,6 +411,22 @@ export default function CashierView() {
                       }`}
                     >
                       {processingId === order.id ? "Closing..." : "💳 Close Order"}
+                    </button>
+                  )}
+
+                  {(order.status === "ready" || order.status === "delivered") && (
+                    <button
+                      onClick={() => markAsUnpaid(order)}
+                      disabled={processingId === order.id}
+                      className={`rounded-lg px-5 py-3 font-semibold text-white ${
+                        processingId === order.id
+                          ? "cursor-not-allowed bg-gray-400"
+                          : "bg-orange-600 hover:bg-orange-700"
+                      }`}
+                    >
+                      {processingId === order.id
+                        ? "Processing..."
+                        : "⚠️ Mark Unpaid"}
                     </button>
                   )}
                 </div>

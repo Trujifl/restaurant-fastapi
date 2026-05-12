@@ -73,6 +73,10 @@ export default function AdminPanel() {
     return orders.filter((order) => order.status === "cancelled").length
   }, [orders])
 
+  const unpaidOrders = useMemo(() => {
+    return orders.filter((order) => order.status === "unpaid").length
+  }, [orders])
+
   const recentOrders = useMemo(() => {
     return [...orders]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -93,6 +97,8 @@ export default function AdminPanel() {
         return "bg-green-100 text-green-800"
       case "cancelled":
         return "bg-red-100 text-red-800"
+      case "unpaid":
+        return "bg-orange-100 text-orange-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -112,6 +118,8 @@ export default function AdminPanel() {
         return "Pagada"
       case "cancelled":
         return "Cancelada"
+      case "unpaid":
+        return "No pagada"
       default:
         return status
     }
@@ -152,7 +160,7 @@ export default function AdminPanel() {
 
       {!loading && !error && (
         <>
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="mb-6 grid gap-4 md:grid-cols-5">
             <div className="rounded-xl border bg-gray-50 p-4">
               <p className="text-sm text-gray-500">Daily sales</p>
               <p className="text-3xl font-bold text-green-700">
@@ -171,6 +179,13 @@ export default function AdminPanel() {
               <p className="text-sm text-gray-500">Cancelled today</p>
               <p className="text-3xl font-bold text-red-600">
                 {summary ? summary.cancelled_orders : 0}
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Unpaid today</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {summary ? summary.unpaid_orders : 0}
               </p>
             </div>
 
@@ -212,7 +227,7 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="mb-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl border bg-gray-50 p-4">
               <p className="text-sm text-gray-500">Total orders</p>
               <p className="text-3xl font-bold text-gray-800">
@@ -233,7 +248,23 @@ export default function AdminPanel() {
                 {cancelledOrders}
               </p>
             </div>
+
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Unpaid orders</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {unpaidOrders}
+              </p>
+            </div>
           </div>
+
+          {summary && (
+            <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-800">
+              ⚠️ Unpaid total today:{" "}
+              <span className="font-semibold">
+                ${Number(summary.unpaid_total || 0).toFixed(2)}
+              </span>
+            </div>
+          )}
 
           <div className="rounded-xl border bg-white p-4 shadow-sm">
             <h3 className="mb-4 text-xl font-bold text-gray-800">
