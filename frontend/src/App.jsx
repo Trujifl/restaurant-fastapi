@@ -8,6 +8,7 @@ import AdminProducts from "./AdminProducts"
 import AdminTables from "./AdminTables"
 import AdminUsers from "./AdminUsers"
 import AdminOrders from "./AdminOrders"
+import CashClosing from "./CashClosing"
 
 import Login from "./components/Login"
 import { getCurrentUser, getToken, removeToken } from "./auth/authService"
@@ -157,6 +158,17 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setAdminView("closing")}
+              className={`px-6 py-4 text-2xl font-semibold ${
+                adminView === "closing"
+                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                  : "hover:bg-gray-50"
+              }`}
+            >
+              🧾 Closing
+            </button>
+
+            <button
               onClick={() => setAdminView("waiter")}
               className={`px-6 py-4 text-2xl font-semibold ${
                 adminView === "waiter"
@@ -196,6 +208,7 @@ export default function App() {
         {currentView === "tables" && <AdminTables />}
         {currentView === "users" && <AdminUsers />}
         {currentView === "orders" && <AdminOrders />}
+        {currentView === "closing" && <CashClosing />}
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
