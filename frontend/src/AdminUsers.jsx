@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react"
-import axios from "axios"
-
-const USERS_API = "http://localhost:8000/users/"
+import api from "./api/axios"
 
 const ROLES = ["admin", "waiter", "kitchen", "cashier"]
 
-export default function AdminUsers({ token }) {
+export default function AdminUsers() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,17 +25,25 @@ export default function AdminUsers({ token }) {
     password: "",
   })
 
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
   }
 
   const fetchUsers = async () => {
     try {
       setLoading(true)
 
-      const res = await axios.get(USERS_API, authHeaders)
+      const res = await api.get("/users/")
 
       setUsers(res.data)
       setError("")
@@ -79,22 +85,18 @@ export default function AdminUsers({ token }) {
     try {
       setSaving(true)
 
-      await axios.post(
-        USERS_API,
-        {
-          name: form.name.trim(),
-          email: form.email.trim(),
-          role: form.role,
-          password: form.password,
-        },
-        authHeaders
-      )
+      await api.post("/users/", {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        password: form.password,
+      })
 
       resetForm()
       await fetchUsers()
     } catch (err) {
       console.error("Error creating user:", err)
-      alert(err.response?.data?.detail || "No se pudo crear el usuario.")
+      alert(getErrorMessage(err) || "No se pudo crear el usuario.")
     } finally {
       setSaving(false)
     }
@@ -149,13 +151,13 @@ export default function AdminUsers({ token }) {
     try {
       setSaving(true)
 
-      await axios.patch(`${USERS_API}${userId}`, payload, authHeaders)
+      await api.patch(`/users/${userId}`, payload)
 
       cancelEditing()
       await fetchUsers()
     } catch (err) {
       console.error("Error updating user:", err)
-      alert(err.response?.data?.detail || "No se pudo actualizar el usuario.")
+      alert(getErrorMessage(err) || "No se pudo actualizar el usuario.")
     } finally {
       setSaving(false)
     }
@@ -165,16 +167,12 @@ export default function AdminUsers({ token }) {
     try {
       setSaving(true)
 
-      await axios.patch(
-        `${USERS_API}${user.id}/status?is_active=${!user.is_active}`,
-        null,
-        authHeaders
-      )
+      await api.patch(`/users/${user.id}/status?is_active=${!user.is_active}`)
 
       await fetchUsers()
     } catch (err) {
       console.error("Error changing user status:", err)
-      alert(err.response?.data?.detail || "No se pudo cambiar el estado.")
+      alert(getErrorMessage(err) || "No se pudo cambiar el estado.")
     } finally {
       setSaving(false)
     }
@@ -190,13 +188,13 @@ export default function AdminUsers({ token }) {
     try {
       setSaving(true)
 
-      await axios.delete(`${USERS_API}${user.id}`, authHeaders)
+      await api.delete(`/users/${user.id}`)
 
       await fetchUsers()
     } catch (err) {
       console.error("Error deleting user:", err)
       alert(
-        err.response?.data?.detail ||
+        getErrorMessage(err) ||
           "No se pudo eliminar el usuario. Prueba desactivarlo."
       )
     } finally {
@@ -220,10 +218,8 @@ export default function AdminUsers({ token }) {
   }
 
   useEffect(() => {
-    if (token) {
-      fetchUsers()
-    }
-  }, [token])
+    fetchUsers()
+  }, [])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -240,7 +236,7 @@ export default function AdminUsers({ token }) {
 
         <button
           onClick={fetchUsers}
-          disabled={!token}
+          disabled={saving}
           className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh

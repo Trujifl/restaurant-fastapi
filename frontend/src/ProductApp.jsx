@@ -1,165 +1,243 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { FaTrash, FaEdit } from "react-icons/fa";
+import { useEffect, useState } from "react"
+import api from "./api/axios"
 
 export default function ProductApp() {
-  const [products, setProducts] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", price: "", category: "" });
+  const [products, setProducts] = useState([])
+  const [name, setName] = useState("")
+  const [price, setPrice] = useState("")
+  const [category, setCategory] = useState("")
+  const [editingId, setEditingId] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [error, setError] = useState("")
 
-  const API_BASE = "http://localhost:8000/products/";
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
+  }
 
   const fetchProducts = async () => {
-    const res = await axios.get(API_BASE);
-    console.log("Productos desde backend:", res.data);
-    setProducts(res.data);
-  };
-  const deleteProduct = async (id) => {
-    const confirmDelete = window.confirm(
-      "¿Estás seguro de que deseas eliminar este producto?"
-    );
-    if (!confirmDelete) return;
-    await axios.delete(`${API_BASE}${id}`);
-    fetchProducts();
-  };
-  const createProduct = async () => {
-    if (!form.name || !form.price) return;
-    await axios.post(API_BASE, {
-      name: form.name,
-      price: parseFloat(form.price),
-      category: form.category,
-    });
-    setForm({ name: "", price: "", category: "" });
-    fetchProducts();
-  };
+    try {
+      const res = await api.get("/products/")
+      setProducts(res.data)
+      setError("")
+    } catch (error) {
+      console.error("Error fetching products:", error)
+      setError("No se pudieron cargar los productos.")
+    }
+  }
 
-  const updateProduct = async () => {
-    if (!form.name.trim()) {
-      alert("El nombre es obligatorio");
-      return;
+  const resetForm = () => {
+    setName("")
+    setPrice("")
+    setCategory("")
+    setEditingId(null)
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!name.trim()) {
+      alert("El nombre es obligatorio.")
+      return
     }
 
-    if (!form.price || parseFloat(form.price) <= 0) {
-      alert("El precio debe ser mayor a 0");
-      return;
+    if (!price || Number(price) <= 0) {
+      alert("El precio debe ser mayor a 0.")
+      return
     }
 
-    await axios.patch(`${API_BASE}${editingId}`, {
-      name: form.name,
-      price: parseFloat(form.price),
-      category: form.category,
-    });
+    const payload = {
+      name: name.trim(),
+      price: Number(price),
+      category: category.trim() || null,
+    }
 
-    setForm({ name: "", price: "", category: "" });
-    setEditingId(null);
-    fetchProducts();
-  };
+    try {
+      if (editingId) {
+        await api.patch(`/products/${editingId}`, payload)
+      } else {
+        await api.post("/products/", payload)
+      }
 
-  const [searchTerm, setSearchTerm] = useState("");
+      resetForm()
+      await fetchProducts()
+    } catch (error) {
+      console.error("Error saving product:", error)
+      alert(getErrorMessage(error) || "No se pudo guardar el producto.")
+    }
+  }
+
+  const handleEdit = (product) => {
+    setEditingId(product.id)
+    setName(product.name || "")
+    setPrice(String(product.price ?? ""))
+    setCategory(product.category || "")
+  }
+
+  const handleDelete = async (productId) => {
+    const confirmDelete = window.confirm("¿Seguro que quieres eliminar este producto?")
+
+    if (!confirmDelete) return
+
+    try {
+      await api.delete(`/products/${productId}`)
+      await fetchProducts()
+    } catch (error) {
+      console.error("Error deleting product:", error)
+      alert(getErrorMessage(error) || "No se pudo eliminar el producto.")
+    }
+  }
+
   const filteredProducts = products.filter((product) => {
-    const query = searchTerm.toLowerCase();
+    const query = searchTerm.toLowerCase()
+
     return (
       product.name.toLowerCase().includes(query) ||
-      (product.category && product.category.toLowerCase().includes(query))
-    );
-  });
+      String(product.category || "").toLowerCase().includes(query)
+    )
+  })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
 
   return (
-    <div className="p-6 max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border border-gray-200">
-      <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
-        🧾Gestión de Productos
-      </h1>
-      <div className="mb-4 grid grid-cols-3 gap-2">
-        <input
-          type="text"
-          placeholder="Buscar por nombre o categoría"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="col-span-3 p-2 border border-gray-400 rounded"
-        />
-        <input
-          type="text"
-          placeholder="Name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Price"
-          value={form.price}
-          onChange={(e) => setForm({ ...form, price: e.target.value })}
-          className="p-2 border rounded"
-        />
-        <input
-          type="text"
-          placeholder="Category"
-          value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
-          className="p-2 border rounded"
-        />
-        <button
-          onClick={() => {
-            if (editingId) {
-              updateProduct();
-            } else {
-              createProduct();
-            }
-          }}
-          className="col-span-3 p-2 bg-blue-600 text-white rounded"
-        >
-          {editingId ? "Update Product" : "Add Product"}
-        </button>
-      </div>
+    <div className="min-h-screen bg-slate-100 p-6">
+      <div className="mx-auto max-w-5xl rounded-2xl border border-gray-200 bg-white p-6 shadow">
+        <h1 className="mb-6 text-center text-4xl font-bold text-slate-800">
+          Product Manager
+        </h1>
 
-      <table className="w-full border mt-6">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2">ID</th>
-            <th className="p-2">Name</th>
-            <th className="p-2">Price</th>
-            <th className="p-2">Category</th>
-            <th className="p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredProducts.length === 0 ? (
-            <tr>
-              <td colSpan="5" className="text-center p-4 text-gray-500">
-                🔍 No se encontraron productos que coincidan.
-              </td>
-            </tr>
-          ) : (
-            filteredProducts.map((product) => (
-              <tr key={product.id} className="text-center border-t">
-                <td className="p-2">{product.id}</td>
-                <td className="p-2">{product.name}</td>
-                <td className="p-2">${product.price}</td>
-                <td className="p-2">{product.category}</td>
-                <td className="p-2 space-x-2">
-                  <button
-                    onClick={() => {
-                      setForm(product);
-                      setEditingId(product.id);
-                    }}
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  >
-                    <FaEdit />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(product.id)}
-                    className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                  >
-                    <FaTrash />
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+        <form
+          onSubmit={handleSubmit}
+          className="mb-6 grid gap-4 rounded-xl border bg-gray-50 p-4 md:grid-cols-4"
+        >
+          <input
+            type="text"
+            placeholder="Product name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="rounded-lg border p-3"
+          />
+
+          <input
+            type="number"
+            placeholder="Price"
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            className="rounded-lg border p-3"
+            min="0"
+            step="0.01"
+          />
+
+          <input
+            type="text"
+            placeholder="Category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="rounded-lg border p-3"
+          />
+
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+          >
+            {editingId ? "Update" : "Create"}
+          </button>
+        </form>
+
+        {editingId && (
+          <div className="mb-4">
+            <button
+              onClick={resetForm}
+              className="rounded-lg bg-gray-500 px-4 py-2 font-semibold text-white hover:bg-gray-600"
+            >
+              Cancel edit
+            </button>
+          </div>
+        )}
+
+        <input
+          type="text"
+          placeholder="Search by name or category..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="mb-6 w-full rounded-lg border p-3"
+        />
+
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+            {error}
+          </div>
+        )}
+
+        {filteredProducts.length === 0 ? (
+          <div className="rounded-xl border bg-gray-50 p-6 text-center text-gray-500">
+            No products found.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="p-3 text-sm font-semibold text-gray-600">ID</th>
+                  <th className="p-3 text-sm font-semibold text-gray-600">Name</th>
+                  <th className="p-3 text-sm font-semibold text-gray-600">Price</th>
+                  <th className="p-3 text-sm font-semibold text-gray-600">Category</th>
+                  <th className="p-3 text-sm font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product.id} className="border-b">
+                    <td className="p-3 font-medium text-gray-800">#{product.id}</td>
+
+                    <td className="p-3 font-medium text-gray-800">
+                      {product.name}
+                    </td>
+
+                    <td className="p-3 text-gray-700">
+                      ${Number(product.price).toFixed(2)}
+                    </td>
+
+                    <td className="p-3 text-gray-700">
+                      {product.category || "-"}
+                    </td>
+
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="rounded-lg bg-yellow-500 px-3 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }

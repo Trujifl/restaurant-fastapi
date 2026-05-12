@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import axios from "axios"
-
-const TABLES_API = "http://localhost:8000/tables/"
-const PRODUCTS_API = "http://localhost:8000/products/"
-const ORDERS_API = "http://localhost:8000/orders/"
-const DAILY_SUMMARY_API = "http://localhost:8000/orders/summary/daily"
+import api from "./api/axios"
 
 export default function AdminPanel() {
   const [tables, setTables] = useState([])
@@ -14,15 +9,29 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "No se pudo cargar la información del panel de administración."
+  }
+
   const fetchAdminData = async () => {
     try {
       setLoading(true)
 
       const [tablesRes, productsRes, ordersRes, summaryRes] = await Promise.all([
-        axios.get(TABLES_API),
-        axios.get(PRODUCTS_API),
-        axios.get(ORDERS_API),
-        axios.get(DAILY_SUMMARY_API),
+        api.get("/tables/"),
+        api.get("/products/"),
+        api.get("/orders/"),
+        api.get("/orders/summary/daily"),
       ])
 
       setTables(tablesRes.data)
@@ -32,7 +41,7 @@ export default function AdminPanel() {
       setError("")
     } catch (err) {
       console.error("Error fetching admin data:", err)
-      setError("No se pudo cargar la información del panel de administración.")
+      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -89,6 +98,25 @@ export default function AdminPanel() {
     }
   }
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "pending":
+        return "Pendiente"
+      case "in_progress":
+        return "En preparación"
+      case "ready":
+        return "Entregada al garzón"
+      case "delivered":
+        return "Entregada a la mesa"
+      case "completed":
+        return "Pagada"
+      case "cancelled":
+        return "Cancelada"
+      default:
+        return status
+    }
+  }
+
   const formatDate = (value) => {
     if (!value) return "-"
     return new Date(value).toLocaleString()
@@ -122,7 +150,7 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {!loading && (
+      {!loading && !error && (
         <>
           <div className="mb-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl border bg-gray-50 p-4">
@@ -251,7 +279,7 @@ export default function AdminPanel() {
                               order.status
                             )}`}
                           >
-                            {order.status}
+                            {getStatusLabel(order.status)}
                           </span>
                         </td>
 

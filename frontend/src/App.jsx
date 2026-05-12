@@ -180,10 +180,10 @@ export default function App() {
         )}
 
         {currentView === "admin" && <AdminPanel />}
-        {currentView === "products" && <AdminProducts token={token} />}
-        {currentView === "tables" && <AdminTables token={token} />}
-        {currentView === "users" && <AdminUsers token={token} />}
-        {currentView === "waiter" && <TableOrders token={token} />}
+        {currentView === "products" && <AdminProducts />}
+        {currentView === "tables" && <AdminTables />}
+        {currentView === "users" && <AdminUsers />}
+        {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
 

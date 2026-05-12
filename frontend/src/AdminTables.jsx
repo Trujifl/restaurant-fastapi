@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react"
-import axios from "axios"
+import api from "./api/axios"
 
-const TABLES_API = "http://localhost:8000/tables/"
-
-export default function AdminTables({ token }) {
+export default function AdminTables() {
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -14,17 +12,25 @@ export default function AdminTables({ token }) {
     status: "available",
   })
 
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
   }
 
   const fetchTables = async () => {
     try {
       setLoading(true)
 
-      const res = await axios.get(TABLES_API, authHeaders)
+      const res = await api.get("/tables/")
 
       setTables(res.data)
       setError("")
@@ -63,20 +69,16 @@ export default function AdminTables({ token }) {
     try {
       setSaving(true)
 
-      await axios.post(
-        TABLES_API,
-        {
-          number: Number(form.number),
-          status: form.status,
-        },
-        authHeaders
-      )
+      await api.post("/tables/", {
+        number: Number(form.number),
+        status: form.status,
+      })
 
       resetForm()
       await fetchTables()
     } catch (err) {
       console.error("Error creating table:", err)
-      alert(err.response?.data?.detail || "No se pudo crear la mesa.")
+      alert(getErrorMessage(err) || "No se pudo crear la mesa.")
     } finally {
       setSaving(false)
     }
@@ -88,18 +90,14 @@ export default function AdminTables({ token }) {
     try {
       setSaving(true)
 
-      await axios.patch(
-        `${TABLES_API}${table.id}/status`,
-        {
-          status: newStatus,
-        },
-        authHeaders
-      )
+      await api.patch(`/tables/${table.id}/status`, {
+        status: newStatus,
+      })
 
       await fetchTables()
     } catch (err) {
       console.error("Error changing table status:", err)
-      alert(err.response?.data?.detail || "No se pudo cambiar el estado.")
+      alert(getErrorMessage(err) || "No se pudo cambiar el estado.")
     } finally {
       setSaving(false)
     }
@@ -115,13 +113,13 @@ export default function AdminTables({ token }) {
     try {
       setSaving(true)
 
-      await axios.delete(`${TABLES_API}${table.id}`, authHeaders)
+      await api.delete(`/tables/${table.id}`)
 
       await fetchTables()
     } catch (err) {
       console.error("Error deleting table:", err)
       alert(
-        err.response?.data?.detail ||
+        getErrorMessage(err) ||
           "No se pudo eliminar la mesa. Puede que tenga órdenes asociadas."
       )
     } finally {
@@ -137,11 +135,15 @@ export default function AdminTables({ token }) {
     return "bg-green-100 text-green-700"
   }
 
+  const getStatusLabel = (status) => {
+    if (status === "occupied") return "Occupied"
+    if (status === "available") return "Available"
+    return status
+  }
+
   useEffect(() => {
-    if (token) {
-      fetchTables()
-    }
-  }, [token])
+    fetchTables()
+  }, [])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -157,7 +159,7 @@ export default function AdminTables({ token }) {
 
         <button
           onClick={fetchTables}
-          disabled={!token}
+          disabled={saving}
           className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Refresh
@@ -256,7 +258,7 @@ export default function AdminTables({ token }) {
                         table.status
                       )}`}
                     >
-                      {table.status}
+                      {getStatusLabel(table.status)}
                     </span>
                   </td>
 

@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react"
-import axios from "axios"
+import api from "./api/axios"
 
-const PRODUCTS_API = "http://localhost:8000/products/"
-
-export default function AdminProducts({ token }) {
+export default function AdminProducts() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -22,17 +20,25 @@ export default function AdminProducts({ token }) {
     category: "",
   })
 
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const getErrorMessage = (error) => {
+    const detail = error.response?.data?.detail
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join("\n")
+    }
+
+    if (typeof detail === "string") {
+      return detail
+    }
+
+    return "Ocurrió un error inesperado."
   }
 
   const fetchProducts = async () => {
     try {
       setLoading(true)
 
-      const res = await axios.get(PRODUCTS_API, authHeaders)
+      const res = await api.get("/products/")
 
       setProducts(res.data)
       setError("")
@@ -68,21 +74,17 @@ export default function AdminProducts({ token }) {
     try {
       setSaving(true)
 
-      await axios.post(
-        PRODUCTS_API,
-        {
-          name: form.name.trim(),
-          price: Number(form.price),
-          category: form.category.trim() || null,
-        },
-        authHeaders
-      )
+      await api.post("/products/", {
+        name: form.name.trim(),
+        price: Number(form.price),
+        category: form.category.trim() || null,
+      })
 
       resetForm()
       await fetchProducts()
     } catch (err) {
       console.error("Error creating product:", err)
-      alert(err.response?.data?.detail || "No se pudo crear el producto.")
+      alert(getErrorMessage(err) || "No se pudo crear el producto.")
     } finally {
       setSaving(false)
     }
@@ -120,21 +122,17 @@ export default function AdminProducts({ token }) {
     try {
       setSaving(true)
 
-      await axios.patch(
-        `${PRODUCTS_API}${productId}`,
-        {
-          name: editForm.name.trim(),
-          price: Number(editForm.price),
-          category: editForm.category.trim() || null,
-        },
-        authHeaders
-      )
+      await api.patch(`/products/${productId}`, {
+        name: editForm.name.trim(),
+        price: Number(editForm.price),
+        category: editForm.category.trim() || null,
+      })
 
       cancelEditing()
       await fetchProducts()
     } catch (err) {
       console.error("Error updating product:", err)
-      alert(err.response?.data?.detail || "No se pudo actualizar el producto.")
+      alert(getErrorMessage(err) || "No se pudo actualizar el producto.")
     } finally {
       setSaving(false)
     }
@@ -150,22 +148,20 @@ export default function AdminProducts({ token }) {
     try {
       setSaving(true)
 
-      await axios.delete(`${PRODUCTS_API}${product.id}`, authHeaders)
+      await api.delete(`/products/${product.id}`)
 
       await fetchProducts()
     } catch (err) {
       console.error("Error deleting product:", err)
-      alert(err.response?.data?.detail || "No se pudo eliminar el producto.")
+      alert(getErrorMessage(err) || "No se pudo eliminar el producto.")
     } finally {
       setSaving(false)
     }
   }
 
   useEffect(() => {
-    if (token) {
-      fetchProducts()
-    }
-  }, [token])
+    fetchProducts()
+  }, [])
 
   return (
     <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow">
@@ -181,8 +177,7 @@ export default function AdminProducts({ token }) {
 
         <button
           onClick={fetchProducts}
-          disabled={!token}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
         >
           Refresh
         </button>
