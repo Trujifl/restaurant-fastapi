@@ -3,7 +3,10 @@ import api from "./api/axios"
 
 export default function CashClosing() {
   const [summary, setSummary] = useState(null)
+  const [closings, setClosings] = useState([])
+  const [notes, setNotes] = useState("")
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
   const getErrorMessage = (error) => {
@@ -17,22 +20,71 @@ export default function CashClosing() {
       return detail
     }
 
-    return "No se pudo cargar el cierre de caja."
+    return "No se pudo procesar el cierre de caja."
   }
 
   const fetchSummary = async () => {
     try {
-      setLoading(true)
-
-      const res = await api.get("/orders/summary/daily")
-
+      const res = await api.get("/cash-closings/preview/today")
       setSummary(res.data)
       setError("")
     } catch (err) {
-      console.error("Error fetching cash closing:", err)
+      console.error("Error fetching cash closing preview:", err)
       setError(getErrorMessage(err))
+    }
+  }
+
+  const fetchClosings = async () => {
+    try {
+      const res = await api.get("/cash-closings/")
+      setClosings(res.data)
+    } catch (err) {
+      console.error("Error fetching cash closings:", err)
+    }
+  }
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      await fetchSummary()
+      await fetchClosings()
     } finally {
       setLoading(false)
+    }
+  }
+
+  const createCashClosing = async () => {
+    if (!summary) return
+
+    if (summary.active_orders > 0) {
+      alert(
+        "No puedes cerrar caja mientras existan órdenes activas. Deben pagarse, cancelarse o marcarse como no pagadas."
+      )
+      return
+    }
+
+    const confirmClose = window.confirm(
+      "¿Seguro que quieres guardar el cierre de caja de hoy?\n\nEsta acción dejará registrado el cierre del día."
+    )
+
+    if (!confirmClose) return
+
+    try {
+      setSaving(true)
+
+      await api.post("/cash-closings/", {
+        notes: notes.trim() || null,
+      })
+
+      setNotes("")
+      await fetchData()
+
+      alert("Cierre de caja guardado correctamente.")
+    } catch (err) {
+      console.error("Error creating cash closing:", err)
+      alert(getErrorMessage(err) || "No se pudo guardar el cierre de caja.")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -40,16 +92,20 @@ export default function CashClosing() {
     return `$${Number(value || 0).toFixed(2)}`
   }
 
+  const formatDate = (value) => {
+    if (!value) return "-"
+    return new Date(value).toLocaleString()
+  }
+
   const cashTotal = summary?.payment_totals?.cash || 0
   const cardTotal = summary?.payment_totals?.card || 0
   const transferTotal = summary?.payment_totals?.transfer || 0
   const totalSales = summary?.total_sales || 0
   const unpaidTotal = summary?.unpaid_total || 0
-
   const expectedTotal = cashTotal + cardTotal + transferTotal
 
   useEffect(() => {
-    fetchSummary()
+    fetchData()
   }, [])
 
   return (
@@ -61,13 +117,14 @@ export default function CashClosing() {
           </h2>
 
           <p className="mt-1 text-gray-500">
-            Resumen operativo del día antes de cerrar caja.
+            Guarda y revisa los cierres diarios de caja.
           </p>
         </div>
 
         <button
-          onClick={fetchSummary}
-          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          onClick={fetchData}
+          disabled={saving}
+          className="w-fit rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
         >
           Actualizar
         </button>
@@ -177,7 +234,7 @@ export default function CashClosing() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-slate-50 p-5">
+          <div className="mb-8 rounded-xl border bg-slate-50 p-5">
             <h3 className="mb-3 text-xl font-bold text-gray-800">
               ✅ Revisión antes de cerrar
             </h3>
@@ -220,7 +277,123 @@ export default function CashClosing() {
 
             {summary.active_orders > 0 && (
               <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-100 p-3 text-yellow-800">
-                Todavía existen órdenes activas. Idealmente deben pagarse, marcarse como no pagadas o resolverse antes del cierre.
+                Todavía existen órdenes activas. Deben pagarse, marcarse como no pagadas o cancelarse antes del cierre.
+              </div>
+            )}
+
+            <div className="mt-6">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Notas del cierre
+              </label>
+
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ej: cierre sin diferencias, faltó comprobante de transferencia, etc."
+                className="w-full rounded-lg border p-3"
+                rows={3}
+              />
+            </div>
+
+            <button
+              onClick={createCashClosing}
+              disabled={saving || summary.active_orders > 0}
+              className={`mt-4 rounded-lg px-5 py-3 font-semibold text-white ${
+                saving || summary.active_orders > 0
+                  ? "cursor-not-allowed bg-gray-400"
+                  : "bg-green-600 hover:bg-green-700"
+              }`}
+            >
+              {saving ? "Guardando..." : "💾 Guardar cierre de caja"}
+            </button>
+          </div>
+
+          <div className="rounded-xl border bg-white p-5">
+            <h3 className="mb-4 text-2xl font-bold text-gray-800">
+              📚 Historial de cierres
+            </h3>
+
+            {closings.length === 0 ? (
+              <div className="rounded-lg border bg-gray-50 p-4 text-center text-gray-500">
+                Todavía no hay cierres guardados.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        ID
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Fecha
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Cerrado en
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Ventas
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Efectivo
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Tarjeta
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Transferencia
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        No pagado
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-gray-600">
+                        Notas
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {closings.map((closing) => (
+                      <tr key={closing.id} className="border-b">
+                        <td className="p-3 font-medium text-gray-800">
+                          #{closing.id}
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {closing.closing_date}
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {formatDate(closing.closed_at)}
+                        </td>
+
+                        <td className="p-3 font-semibold text-green-700">
+                          {formatMoney(closing.total_sales)}
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {formatMoney(closing.cash_total)}
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {formatMoney(closing.card_total)}
+                        </td>
+
+                        <td className="p-3 text-gray-700">
+                          {formatMoney(closing.transfer_total)}
+                        </td>
+
+                        <td className="p-3 text-orange-700">
+                          {formatMoney(closing.unpaid_total)}
+                        </td>
+
+                        <td className="p-3 text-gray-600">
+                          {closing.notes || "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

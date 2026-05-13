@@ -3,14 +3,18 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine, SessionLocal
+from database import Base, engine
 from models import order, product, table, user
+from models import cash_closing
 from routers import product
 from routers import table as table_router
 from routers import order as order_router
 from routers import auth as auth_router
 from routers import user as user_router
+from routers import cash_closing as cash_closing_router
 from seed import create_default_admin
+from database import SessionLocal
+
 
 app = FastAPI(
     docs_url="/api/docs",
@@ -46,6 +50,7 @@ app.include_router(table_router.router)
 app.include_router(order_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_router.router)
+app.include_router(cash_closing_router.router)
 
 
 @app.get("/")
