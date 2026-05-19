@@ -2,13 +2,25 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+.env
 
 restaurant.db
+comandas.db
 *.db
 
 node_modules/
 frontend/node_modules/
+frontend/node_modules/.vite/
 frontend/.vite/
 frontend/dist/
+frontend/build/
 dist/
+build/
 .vite/
+
+.DS_Store
+Thumbs.db
+.vscode/
