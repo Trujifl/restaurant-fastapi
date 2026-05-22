@@ -14,6 +14,21 @@ import DailyReports from "./DailyReports"
 import Login from "./components/Login"
 import { getCurrentUser, getToken, removeToken } from "./auth/authService"
 
+const VALID_ROLES = ["admin", "waiter", "kitchen", "cashier"]
+
+const ADMIN_VIEWS = [
+  { id: "admin", label: "🛠️ Admin" },
+  { id: "products", label: "📦 Products" },
+  { id: "tables", label: "🪑 Tables" },
+  { id: "users", label: "👥 Users" },
+  { id: "orders", label: "📜 Orders" },
+  { id: "closing", label: "🧾 Closing" },
+  { id: "reports", label: "📊 Reports" },
+  { id: "waiter", label: "🧑‍🍳 Waiter" },
+  { id: "kitchen", label: "🍳 Kitchen" },
+  { id: "cashier", label: "💳 Cashier" },
+]
+
 export default function App() {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
@@ -35,7 +50,8 @@ export default function App() {
         setUser(currentUser)
         setToken(savedToken)
       } catch (error) {
-        console.error(error)
+        console.error("Session could not be loaded:", error)
+
         removeToken()
         setUser(null)
         setToken(null)
@@ -77,6 +93,34 @@ export default function App() {
   }
 
   const normalizedRole = user.role?.trim().toLowerCase()
+
+  if (!VALID_ROLES.includes(normalizedRole)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+        <div className="max-w-xl rounded-2xl border border-red-200 bg-white p-8 shadow">
+          <h1 className="text-3xl font-bold text-red-600">
+            Invalid user role
+          </h1>
+
+          <p className="mt-4 text-lg text-slate-700">
+            Your account has an invalid role:
+          </p>
+
+          <p className="mt-2 rounded-lg bg-red-50 px-4 py-3 font-mono text-red-700">
+            {user.role || "No role"}
+          </p>
+
+          <button
+            onClick={handleLogout}
+            className="mt-6 rounded-lg bg-red-500 px-5 py-3 font-semibold text-white hover:bg-red-600"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const currentView = normalizedRole === "admin" ? adminView : normalizedRole
 
   return (
@@ -89,7 +133,7 @@ export default function App() {
             </h1>
 
             <p className="mt-3 text-lg text-gray-600">
-              👤 {user.name} — Role: {normalizedRole}
+              👤 {user.name || user.email} — Role: {normalizedRole}
             </p>
           </div>
 
@@ -103,115 +147,19 @@ export default function App() {
 
         {normalizedRole === "admin" && (
           <div className="mb-6 inline-flex flex-wrap overflow-hidden rounded-2xl border border-gray-200 bg-white shadow">
-            <button
-              onClick={() => setAdminView("admin")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "admin"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              🛠️ Admin
-            </button>
-
-            <button
-              onClick={() => setAdminView("products")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "products"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              📦 Products
-            </button>
-
-            <button
-              onClick={() => setAdminView("tables")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "tables"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              🪑 Tables
-            </button>
-
-            <button
-              onClick={() => setAdminView("users")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "users"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              👥 Users
-            </button>
-
-            <button
-              onClick={() => setAdminView("orders")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "orders"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              📜 Orders
-            </button>
-
-            <button
-              onClick={() => setAdminView("closing")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "closing"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              🧾 Closing
-            </button>
-
-            <button
-              onClick={() => setAdminView("reports")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "reports"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              📊 Reports
-            </button>
-
-            <button
-              onClick={() => setAdminView("waiter")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "waiter"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              🧑‍🍳 Waiter
-            </button>
-
-            <button
-              onClick={() => setAdminView("kitchen")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "kitchen"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              🍳 Kitchen
-            </button>
-
-            <button
-              onClick={() => setAdminView("cashier")}
-              className={`px-6 py-4 text-2xl font-semibold ${
-                adminView === "cashier"
-                  ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              💳 Cashier
-            </button>
+            {ADMIN_VIEWS.map((view) => (
+              <button
+                key={view.id}
+                onClick={() => setAdminView(view.id)}
+                className={`px-6 py-4 text-2xl font-semibold ${
+                  adminView === view.id
+                    ? "bg-gray-100 ring-2 ring-inset ring-gray-800"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                {view.label}
+              </button>
+            ))}
           </div>
         )}
 
@@ -225,12 +173,6 @@ export default function App() {
         {currentView === "waiter" && <TableOrders />}
         {currentView === "kitchen" && <KitchenView />}
         {currentView === "cashier" && <CashierView />}
-
-        {!["waiter", "kitchen", "cashier", "admin"].includes(normalizedRole) && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-            Invalid role: {user.role}
-          </div>
-        )}
       </div>
     </div>
   )
