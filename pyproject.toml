@@ -14,12 +14,7 @@ dependencies = [
   "uvicorn[standard]>=0.24.0",
   "alembic>=1.13.0",
   "gunicorn>=22.0.0",
-  "python-dotenv>=1.0.0"
-<<<<<<< HEAD
-  # Si usarás Postgres:
-  # "psycopg2-binary>=2.9.9"
-=======
->>>>>>> 88aa4b9671e6c4e767141c467d19c6a98d9323b6
+  "python-dotenv>=1.0.0",
 ]
 
 [build-system]
@@ -27,4 +22,4 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["models", "schemas", "routers", "database", "alembic"]
+include = ["models", "schemas", "routers", "utils"]
